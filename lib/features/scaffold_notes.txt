@@ -1,0 +1,5 @@
+Scaffold notes:
+- Bottom navigation: 5 items (Overview, Transactions, Budgets, Accounts, + center FAB)
+- Transactions: create/list/edit
+- Budgets: create budget limits per category per timeframe (week/month)
+- Accounts: manage accounts/wallets
