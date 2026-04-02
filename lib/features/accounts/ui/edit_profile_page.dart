@@ -33,15 +33,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSaving = true);
-    
-    // Giả lập lưu dữ liệu
-    await Future.delayed(const Duration(milliseconds: 800));
-    
-    if (mounted) {
+
+    try {
+      // Giả lập độ trễ mạng
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      await AuthService.updateCurrentUserProfile(
+        fullName: _nameCtrl.text,
+        phone: _phoneCtrl.text,
+      );
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Đã cập nhật thông tin thành công!')),
       );
-      Navigator.pop(context);
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+      setState(() => _isSaving = false);
     }
   }
 

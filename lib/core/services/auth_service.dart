@@ -32,4 +32,38 @@ class AuthService {
   static void logout() {
     _currentUser = null;
   }
+
+  static Future<void> updateCurrentUserProfile({
+    required String fullName,
+    required String phone,
+  }) async {
+    final current = _currentUser;
+    if (current == null) {
+      throw Exception('Bạn chưa đăng nhập');
+    }
+
+    final normalizedName = fullName.trim();
+    final normalizedPhone = phone.trim();
+
+    _currentUser = current.copyWith(
+      fullName: normalizedName,
+      phone: normalizedPhone,
+      avatarInitials: _buildInitials(normalizedName),
+    );
+  }
+
+  static String _buildInitials(String fullName) {
+    final parts = fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) return '';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+
+    final first = parts.first[0];
+    final last = parts.last[0];
+    return (first + last).toUpperCase();
+  }
 }

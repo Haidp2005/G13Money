@@ -16,4 +16,22 @@ class UserModel {
   });
 
   String get firstName => fullName.split(' ').last;
+
+  UserModel copyWith({
+    String? id,
+    String? fullName,
+    String? email,
+    String? phone,
+    String? avatarInitials,
+    DateTime? joinedDate,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      fullName: fullName ?? this.fullName,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      avatarInitials: avatarInitials ?? this.avatarInitials,
+      joinedDate: joinedDate ?? this.joinedDate,
+    );
+  }
 }
