@@ -17,9 +17,19 @@ class _BudgetFormState extends State<BudgetForm> {
   late final TextEditingController _titleController;
   late final TextEditingController _categoryController;
   late final TextEditingController _limitController;
-  late final TextEditingController _spentController;
 
-  late DateTime _date;
+  String _selectedWallet = 'Tất cả ví';
+  final List<String> _wallets = [
+    'Tất cả ví',
+    'Tiền mặt',
+    'Vietcombank',
+    'Techcombank',
+    'Momo',
+    'ZaloPay',
+  ];
+
+  late DateTime _startDate;
+  late DateTime _endDate;
 
   @override
   void initState() {
@@ -30,10 +40,15 @@ class _BudgetFormState extends State<BudgetForm> {
     _limitController = TextEditingController(
       text: budget == null ? '' : budget.limit.toStringAsFixed(0),
     );
-    _spentController = TextEditingController(
-      text: budget == null ? '0' : budget.spent.toStringAsFixed(0),
-    );
-    _date = budget?.date ?? DateTime.now();
+
+    if (budget != null && !_wallets.contains(budget.walletName)) {
+      _wallets.add(budget.walletName);
+    }
+    _selectedWallet = budget?.walletName ?? _wallets.first;
+
+    final now = DateTime.now();
+    _startDate = budget?.startDate ?? DateTime(now.year, now.month, 1);
+    _endDate = budget?.endDate ?? DateTime(now.year, now.month + 1, 0);
   }
 
   @override
@@ -41,7 +56,6 @@ class _BudgetFormState extends State<BudgetForm> {
     _titleController.dispose();
     _categoryController.dispose();
     _limitController.dispose();
-    _spentController.dispose();
     super.dispose();
   }
 
@@ -119,42 +133,49 @@ class _BudgetFormState extends State<BudgetForm> {
                   },
                 ),
                 const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _limitController,
-                        keyboardType: TextInputType.number,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Hạn mức',
-                          suffixText: 'VNĐ',
-                        ),
-                        validator: _validateMoney,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _spentController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Đã chi',
-                          suffixText: 'VNĐ',
-                        ),
-                        validator: _validateMoney,
-                      ),
-                    ),
-                  ],
+                DropdownButtonFormField<String>(
+                  value: _selectedWallet,
+                  decoration: const InputDecoration(
+                    labelText: 'Áp dụng cho ví/tài khoản',
+                  ),
+                  items: _wallets.map((wallet) {
+                    return DropdownMenuItem(value: wallet, child: Text(wallet));
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedWallet = value;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _limitController,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Hạn mức',
+                    suffixText: 'VNĐ',
+                  ),
+                  validator: _validateMoney,
                 ),
                 const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
                       child: _DateField(
-                        label: 'Ngày',
-                        value: _formatDate(_date),
-                        onTap: () => _pickDate(),
+                        label: 'Từ ngày',
+                        value: _formatDate(_startDate),
+                        onTap: () => _pickStartDate(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _DateField(
+                        label: 'Đến ngày',
+                        value: _formatDate(_endDate),
+                        onTap: () => _pickEndDate(),
                       ),
                     ),
                   ],
@@ -189,17 +210,34 @@ class _BudgetFormState extends State<BudgetForm> {
     return null;
   }
 
-  Future<void> _pickDate() async {
+  Future<void> _pickStartDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
+      initialDate: _startDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
     if (picked == null) return;
 
     setState(() {
-      _date = picked;
+      _startDate = picked;
+      if (_endDate.isBefore(_startDate)) {
+        _endDate = _startDate;
+      }
+    });
+  }
+
+  Future<void> _pickEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate.isBefore(_startDate) ? _startDate : _endDate,
+      firstDate: _startDate,
+      lastDate: DateTime(2100),
+    );
+    if (picked == null) return;
+
+    setState(() {
+      _endDate = picked;
     });
   }
 
@@ -213,11 +251,12 @@ class _BudgetFormState extends State<BudgetForm> {
           DateTime.now().millisecondsSinceEpoch.toString(),
       title: _titleController.text.trim(),
       category: _categoryController.text.trim(),
+      walletName: _selectedWallet,
       limit: double.parse(_limitController.text.replaceAll(',', '').trim()),
       spent: double.parse(_spentController.text.replaceAll(',', '').trim()),
       date: _date,
-      color: CategoryHelper.colorFor(_categoryController.text.trim()),
-      icon: CategoryHelper.iconFor(_categoryController.text.trim()),
+      color: _budgetColorForCategory(_categoryController.text.trim()),
+      icon: _budgetIconForCategory(_categoryController.text.trim()),
     );
 
     Navigator.pop(context, budget);
