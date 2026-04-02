@@ -14,7 +14,7 @@ class ExpenseManagerApp extends StatelessWidget {
 				colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
 				useMaterial3: true,
 			),
-			initialRoute: AppRoutes.login,
+			initialRoute: AppRoutes.transactionHistory,
 			routes: AppRoutes.map,
 		);
 	}
