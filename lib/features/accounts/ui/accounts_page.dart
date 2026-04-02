@@ -42,7 +42,8 @@ class _ProfileView extends StatelessWidget {
               IconButton(
                 tooltip: 'Chỉnh sửa',
                 icon: const Icon(Icons.edit_outlined, color: Colors.white),
-                onPressed: () => Navigator.pushNamed(context, AppRoutes.editProfile),
+                onPressed: () =>
+                    Navigator.pushNamed(context, AppRoutes.editProfile),
               ),
               const SizedBox(width: 8),
             ],
@@ -81,10 +82,7 @@ class _HeaderBackground extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            scheme.primary,
-            scheme.tertiary,
-          ],
+          colors: [scheme.primary, scheme.tertiary],
         ),
       ),
       child: SafeArea(
@@ -137,7 +135,11 @@ class _HeaderBackground extends StatelessWidget {
 
 // ── Info Bottom Sheet ────────────────────────────────────────────────────────
 
-void _showInfoBottomSheet(BuildContext context, UserModel user, ColorScheme scheme) {
+void _showInfoBottomSheet(
+  BuildContext context,
+  UserModel user,
+  ColorScheme scheme,
+) {
   final joinedStr =
       '${user.joinedDate.day.toString().padLeft(2, '0')}/'
       '${user.joinedDate.month.toString().padLeft(2, '0')}/'
@@ -176,7 +178,11 @@ void _showInfoBottomSheet(BuildContext context, UserModel user, ColorScheme sche
                   color: scheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.person_outline, color: scheme.primary, size: 22),
+                child: Icon(
+                  Icons.person_outline,
+                  color: scheme.primary,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 14),
               Text(
@@ -192,13 +198,33 @@ void _showInfoBottomSheet(BuildContext context, UserModel user, ColorScheme sche
           const SizedBox(height: 20),
           const Divider(height: 1),
           const SizedBox(height: 8),
-          _InfoRow(icon: Icons.badge_outlined,          label: 'Họ và tên',       value: user.fullName,  scheme: scheme),
+          _InfoRow(
+            icon: Icons.badge_outlined,
+            label: 'Họ và tên',
+            value: user.fullName,
+            scheme: scheme,
+          ),
           const Divider(height: 1, indent: 48),
-          _InfoRow(icon: Icons.email_outlined,          label: 'Email',            value: user.email,     scheme: scheme),
+          _InfoRow(
+            icon: Icons.email_outlined,
+            label: 'Email',
+            value: user.email,
+            scheme: scheme,
+          ),
           const Divider(height: 1, indent: 48),
-          _InfoRow(icon: Icons.phone_outlined,          label: 'Số điện thoại',   value: user.phone,     scheme: scheme),
+          _InfoRow(
+            icon: Icons.phone_outlined,
+            label: 'Số điện thoại',
+            value: user.phone,
+            scheme: scheme,
+          ),
           const Divider(height: 1, indent: 48),
-          _InfoRow(icon: Icons.calendar_today_outlined, label: 'Ngày tham gia',   value: joinedStr,      scheme: scheme),
+          _InfoRow(
+            icon: Icons.calendar_today_outlined,
+            label: 'Ngày tham gia',
+            value: joinedStr,
+            scheme: scheme,
+          ),
           const SizedBox(height: 8),
         ],
       ),
@@ -238,11 +264,17 @@ class _InfoRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 11, color: scheme.outline)),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 11, color: scheme.outline),
+                ),
                 const SizedBox(height: 3),
                 Text(
                   value,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -252,8 +284,6 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
-
-
 
 // ── Menu Card ────────────────────────────────────────────────────────────────
 
@@ -266,6 +296,11 @@ class _MenuCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = [
       (Icons.notifications_outlined, 'Thông báo', 'Quản lý thông báo'),
+      (
+        Icons.account_balance_wallet_outlined,
+        'Ngân sách',
+        'Hạn mức chi tiêu theo danh mục',
+      ),
       (Icons.lock_outline, 'Bảo mật', 'Đổi mật khẩu & bảo mật'),
       (Icons.language_outlined, 'Ngôn ngữ', 'Tiếng Việt'),
       (Icons.color_lens_outlined, 'Giao diện', 'Chủ đề sáng'),
@@ -280,7 +315,10 @@ class _MenuCard extends StatelessWidget {
           _CardTitle('Tài khoản', scheme),
           const SizedBox(height: 4),
           ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 0,
+              vertical: 2,
+            ),
             leading: Container(
               width: 38,
               height: 38,
@@ -288,7 +326,11 @@ class _MenuCard extends StatelessWidget {
                 color: scheme.primaryContainer,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.person_outline, size: 20, color: scheme.primary),
+              child: Icon(
+                Icons.person_outline,
+                size: 20,
+                color: scheme.primary,
+              ),
             ),
             title: const Text(
               'Thông tin cá nhân',
@@ -311,6 +353,11 @@ class _MenuCard extends StatelessWidget {
               title: item.$2,
               subtitle: item.$3,
               scheme: scheme,
+              onTap: () {
+                if (item.$2 == 'Ngân sách') {
+                  Navigator.pushNamed(context, AppRoutes.budgets);
+                }
+              },
             ),
           ),
         ],
@@ -324,11 +371,13 @@ class _MenuItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final ColorScheme scheme;
+  final VoidCallback onTap;
   const _MenuItem({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.scheme,
+    required this.onTap,
   });
 
   @override
@@ -353,7 +402,7 @@ class _MenuItem extends StatelessWidget {
         style: TextStyle(fontSize: 12, color: scheme.outline),
       ),
       trailing: Icon(Icons.chevron_right, color: scheme.outline),
-      onTap: () {},
+      onTap: onTap,
     );
   }
 }
@@ -420,14 +469,13 @@ class _LogoutButton extends StatelessWidget {
 
 class _Card extends StatelessWidget {
   final Widget child;
-  final EdgeInsets? padding;
-  const _Card({required this.child, this.padding});
+  const _Card({required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
