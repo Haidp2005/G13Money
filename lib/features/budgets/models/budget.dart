@@ -6,8 +6,7 @@ class Budget {
   final String category;
   final double limit;
   final double spent;
-  final DateTime periodStart;
-  final DateTime periodEnd;
+  final DateTime date;
   final Color color;
   final IconData icon;
 
@@ -17,8 +16,7 @@ class Budget {
     required this.category,
     required this.limit,
     required this.spent,
-    required this.periodStart,
-    required this.periodEnd,
+    required this.date,
     required this.color,
     required this.icon,
   });
@@ -40,8 +38,7 @@ class Budget {
     String? category,
     double? limit,
     double? spent,
-    DateTime? periodStart,
-    DateTime? periodEnd,
+    DateTime? date,
     Color? color,
     IconData? icon,
   }) {
@@ -51,8 +48,7 @@ class Budget {
       category: category ?? this.category,
       limit: limit ?? this.limit,
       spent: spent ?? this.spent,
-      periodStart: periodStart ?? this.periodStart,
-      periodEnd: periodEnd ?? this.periodEnd,
+      date: date ?? this.date,
       color: color ?? this.color,
       icon: icon ?? this.icon,
     );

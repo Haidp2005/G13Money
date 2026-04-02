@@ -18,8 +18,7 @@ class _BudgetFormState extends State<BudgetForm> {
   late final TextEditingController _limitController;
   late final TextEditingController _spentController;
 
-  late DateTime _startDate;
-  late DateTime _endDate;
+  late DateTime _date;
 
   @override
   void initState() {
@@ -33,8 +32,7 @@ class _BudgetFormState extends State<BudgetForm> {
     _spentController = TextEditingController(
       text: budget == null ? '0' : budget.spent.toStringAsFixed(0),
     );
-    _startDate = budget?.periodStart ?? _startOfMonth(DateTime.now());
-    _endDate = budget?.periodEnd ?? _endOfMonth(DateTime.now());
+    _date = budget?.date ?? DateTime.now();
   }
 
   @override
@@ -153,17 +151,9 @@ class _BudgetFormState extends State<BudgetForm> {
                   children: [
                     Expanded(
                       child: _DateField(
-                        label: 'Bắt đầu',
-                        value: _formatDate(_startDate),
-                        onTap: () => _pickDate(isStart: true),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _DateField(
-                        label: 'Kết thúc',
-                        value: _formatDate(_endDate),
-                        onTap: () => _pickDate(isStart: false),
+                        label: 'Ngày',
+                        value: _formatDate(_date),
+                        onTap: () => _pickDate(),
                       ),
                     ),
                   ],
@@ -198,25 +188,17 @@ class _BudgetFormState extends State<BudgetForm> {
     return null;
   }
 
-  Future<void> _pickDate({required bool isStart}) async {
-    final current = isStart ? _startDate : _endDate;
+  Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: current,
+      initialDate: _date,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
     if (picked == null) return;
 
     setState(() {
-      if (isStart) {
-        _startDate = picked;
-        if (_endDate.isBefore(_startDate)) {
-          _endDate = _startDate.add(const Duration(days: 30));
-        }
-      } else {
-        _endDate = picked;
-      }
+      _date = picked;
     });
   }
 
@@ -232,8 +214,7 @@ class _BudgetFormState extends State<BudgetForm> {
       category: _categoryController.text.trim(),
       limit: double.parse(_limitController.text.replaceAll(',', '').trim()),
       spent: double.parse(_spentController.text.replaceAll(',', '').trim()),
-      periodStart: _startDate,
-      periodEnd: _endDate,
+      date: _date,
       color: _budgetColorForCategory(_categoryController.text.trim()),
       icon: _budgetIconForCategory(_categoryController.text.trim()),
     );
@@ -244,10 +225,6 @@ class _BudgetFormState extends State<BudgetForm> {
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
-
-  DateTime _startOfMonth(DateTime date) => DateTime(date.year, date.month, 1);
-
-  DateTime _endOfMonth(DateTime date) => DateTime(date.year, date.month + 1, 0);
 }
 
 class _DateField extends StatelessWidget {
