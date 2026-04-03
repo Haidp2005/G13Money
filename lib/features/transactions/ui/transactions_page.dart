@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/language_service.dart';
 import '../../shared/widgets/category_helper.dart';
 
 class TransactionsPage extends StatefulWidget {
@@ -90,7 +91,7 @@ class _TransactionsPageState extends State<TransactionsPage>
                 const Text('🌐', style: TextStyle(fontSize: 16)),
                 const SizedBox(width: 8),
                 Text(
-                  'Tổng cộng',
+                  LanguageService.tr(vi: 'Tổng cộng', en: 'Total'),
                   style: TextStyle(
                     color: scheme.onSurface,
                     fontSize: 14,
@@ -145,7 +146,7 @@ class _TransactionsPageState extends State<TransactionsPage>
       child: Column(
         children: [
           Text(
-            'Số dư',
+            LanguageService.tr(vi: 'Số dư', en: 'Balance'),
             style: TextStyle(
               color: scheme.outline,
               fontSize: 13,
@@ -199,10 +200,10 @@ class _TransactionsPageState extends State<TransactionsPage>
         dividerColor: Colors.transparent,
         padding: EdgeInsets.zero,
         labelPadding: const EdgeInsets.symmetric(vertical: 4),
-        tabs: const [
-          Tab(text: 'TUẦN TRƯỚC'),
-          Tab(text: 'TUẦN NÀY'),
-          Tab(text: 'TƯƠNG LAI'),
+        tabs: [
+          Tab(text: LanguageService.tr(vi: 'TUẦN TRƯỚC', en: 'LAST WEEK')),
+          Tab(text: LanguageService.tr(vi: 'TUẦN NÀY', en: 'THIS WEEK')),
+          Tab(text: LanguageService.tr(vi: 'TƯƠNG LAI', en: 'FUTURE')),
         ],
       ),
     );
@@ -222,10 +223,10 @@ class _TransactionsPageState extends State<TransactionsPage>
             scheme: scheme,
             child: Column(
               children: [
-                _summaryRow('Tiền vào', _formatNumber(periodData.income),
+                _summaryRow(LanguageService.tr(vi: 'Tiền vào', en: 'Income'), _formatNumber(periodData.income),
                     const Color(0xFF2DCC5A)),
                 const SizedBox(height: 12),
-                _summaryRow('Tiền ra', _formatNumber(periodData.expense),
+                _summaryRow(LanguageService.tr(vi: 'Tiền ra', en: 'Expense'), _formatNumber(periodData.expense),
                     const Color(0xFFFF6B6B)),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -265,7 +266,10 @@ class _TransactionsPageState extends State<TransactionsPage>
                 backgroundColor: scheme.primary.withValues(alpha: 0.04),
               ),
               child: Text(
-                'Xem báo cáo cho giai đoạn này',
+                LanguageService.tr(
+                  vi: 'Xem báo cáo cho giai đoạn này',
+                  en: 'View report for this period',
+                ),
                 style: TextStyle(
                   color: scheme.primary,
                   fontSize: 14,
@@ -493,13 +497,13 @@ class _TransactionsPageState extends State<TransactionsPage>
         transactionGroups: [
           _TransactionGroup(
             dayNumber: '31',
-            dayName: 'Thứ Ba',
-            monthYear: 'tháng 3 2026',
+            dayName: LanguageService.tr(vi: 'Thứ Ba', en: 'Tuesday'),
+            monthYear: LanguageService.tr(vi: 'tháng 3 2026', en: 'March 2026'),
             total: 500000,
             transactions: [
               _TransactionItem(
-                title: 'Lương',
-                note: 'Lương về',
+                title: LanguageService.tr(vi: 'Lương', en: 'Salary'),
+                note: LanguageService.tr(vi: 'Lương về', en: 'Salary received'),
                 amount: 500000,
                 isIncome: true,
                 icon: CategoryHelper.iconFor('Lương'),
@@ -516,27 +520,27 @@ class _TransactionsPageState extends State<TransactionsPage>
         transactionGroups: [
           _TransactionGroup(
             dayNumber: '25',
-            dayName: 'Thứ Tư',
-            monthYear: 'tháng 3 2026',
+            dayName: LanguageService.tr(vi: 'Thứ Tư', en: 'Wednesday'),
+            monthYear: LanguageService.tr(vi: 'tháng 3 2026', en: 'March 2026'),
             total: 850000,
             transactions: [
               _TransactionItem(
-                title: 'Tiền thưởng',
+                title: LanguageService.tr(vi: 'Tiền thưởng', en: 'Bonus'),
                 amount: 1000000,
                 isIncome: true,
                 icon: CategoryHelper.iconFor('Thưởng'),
                 categoryColor: CategoryHelper.colorFor('Thưởng'),
               ),
               _TransactionItem(
-                title: 'Ăn uống',
-                note: 'Cơm trưa',
+                title: LanguageService.tr(vi: 'Ăn uống', en: 'Food & drinks'),
+                note: LanguageService.tr(vi: 'Cơm trưa', en: 'Lunch'),
                 amount: -50000,
                 isIncome: false,
                 icon: CategoryHelper.iconFor('Ăn uống'),
                 categoryColor: CategoryHelper.colorFor('Ăn uống'),
               ),
               _TransactionItem(
-                title: 'Mua sắm',
+                title: LanguageService.tr(vi: 'Mua sắm', en: 'Shopping'),
                 amount: -100000,
                 isIncome: false,
                 icon: CategoryHelper.iconFor('Mua sắm'),

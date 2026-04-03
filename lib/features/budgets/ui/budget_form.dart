@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/language_service.dart';
 import '../../shared/widgets/category_helper.dart';
 import '../models/budget.dart';
 
@@ -77,7 +78,9 @@ class _BudgetFormState extends State<BudgetForm> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  isEditing ? 'Chỉnh sửa ngân sách' : 'Tạo ngân sách mới',
+                  isEditing
+                      ? LanguageService.tr(vi: 'Chỉnh sửa ngân sách', en: 'Edit budget')
+                      : LanguageService.tr(vi: 'Tạo ngân sách mới', en: 'Create new budget'),
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
@@ -85,20 +88,29 @@ class _BudgetFormState extends State<BudgetForm> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Thiết lập hạn mức theo danh mục và thời gian theo dõi.',
+                  LanguageService.tr(
+                    vi: 'Thiết lập hạn mức theo danh mục và thời gian theo dõi.',
+                    en: 'Set spending limit by category and tracking time.',
+                  ),
                   style: TextStyle(color: scheme.outline),
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _titleController,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Tên ngân sách',
-                    hintText: 'Ví dụ: Chi tiêu ăn uống tháng này',
+                  decoration: InputDecoration(
+                    labelText: LanguageService.tr(vi: 'Tên ngân sách', en: 'Budget name'),
+                    hintText: LanguageService.tr(
+                      vi: 'Ví dụ: Chi tiêu ăn uống tháng này',
+                      en: 'Example: Food spending this month',
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Vui lòng nhập tên ngân sách';
+                      return LanguageService.tr(
+                        vi: 'Vui lòng nhập tên ngân sách',
+                        en: 'Please enter budget name',
+                      );
                     }
                     return null;
                   },
@@ -107,13 +119,19 @@ class _BudgetFormState extends State<BudgetForm> {
                 TextFormField(
                   controller: _categoryController,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Danh mục',
-                    hintText: 'Ví dụ: Ăn uống, Di chuyển',
+                  decoration: InputDecoration(
+                    labelText: LanguageService.tr(vi: 'Danh mục', en: 'Category'),
+                    hintText: LanguageService.tr(
+                      vi: 'Ví dụ: Ăn uống, Di chuyển',
+                      en: 'Example: Food, Transport',
+                    ),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Vui lòng nhập danh mục';
+                      return LanguageService.tr(
+                        vi: 'Vui lòng nhập danh mục',
+                        en: 'Please enter category',
+                      );
                     }
                     return null;
                   },
@@ -126,8 +144,8 @@ class _BudgetFormState extends State<BudgetForm> {
                         controller: _limitController,
                         keyboardType: TextInputType.number,
                         textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Hạn mức',
+                        decoration: InputDecoration(
+                          labelText: LanguageService.tr(vi: 'Hạn mức', en: 'Limit'),
                           suffixText: 'VNĐ',
                         ),
                         validator: _validateMoney,
@@ -138,8 +156,8 @@ class _BudgetFormState extends State<BudgetForm> {
                       child: TextFormField(
                         controller: _spentController,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Đã chi',
+                        decoration: InputDecoration(
+                          labelText: LanguageService.tr(vi: 'Đã chi', en: 'Spent'),
                           suffixText: 'VNĐ',
                         ),
                         validator: _validateMoney,
@@ -152,7 +170,7 @@ class _BudgetFormState extends State<BudgetForm> {
                   children: [
                     Expanded(
                       child: _DateField(
-                        label: 'Ngày',
+                        label: LanguageService.tr(vi: 'Ngày', en: 'Date'),
                         value: _formatDate(_date),
                         onTap: () => _pickDate(),
                       ),
@@ -166,7 +184,9 @@ class _BudgetFormState extends State<BudgetForm> {
                     onPressed: _submit,
                     icon: const Icon(Icons.save_outlined),
                     label: Text(
-                      isEditing ? 'Cập nhật ngân sách' : 'Tạo ngân sách',
+                      isEditing
+                          ? LanguageService.tr(vi: 'Cập nhật ngân sách', en: 'Update budget')
+                          : LanguageService.tr(vi: 'Tạo ngân sách', en: 'Create budget'),
                     ),
                   ),
                 ),
@@ -180,11 +200,11 @@ class _BudgetFormState extends State<BudgetForm> {
 
   String? _validateMoney(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Vui lòng nhập số tiền';
+      return LanguageService.tr(vi: 'Vui lòng nhập số tiền', en: 'Please enter amount');
     }
     final parsed = double.tryParse(value.replaceAll(',', '').trim());
     if (parsed == null || parsed < 0) {
-      return 'Số tiền không hợp lệ';
+      return LanguageService.tr(vi: 'Số tiền không hợp lệ', en: 'Invalid amount');
     }
     return null;
   }

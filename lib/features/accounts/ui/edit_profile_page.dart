@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/language_service.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -45,7 +46,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã cập nhật thông tin thành công!')),
+        SnackBar(
+          content: Text(
+            LanguageService.tr(
+              vi: 'Đã cập nhật thông tin thành công!',
+              en: 'Profile updated successfully!',
+            ),
+          ),
+        ),
       );
       Navigator.pop(context, true);
     } catch (e) {
@@ -63,7 +71,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chỉnh sửa thông tin', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          LanguageService.tr(vi: 'Chỉnh sửa thông tin', en: 'Edit profile'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -116,17 +127,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
               // Inputs
               _buildInput(
                 controller: _nameCtrl,
-                label: 'Họ và tên',
+                label: LanguageService.tr(vi: 'Họ và tên', en: 'Full name'),
                 icon: Icons.person_outline,
-                validator: (v) => (v == null || v.isEmpty) ? 'Không được để trống' : null,
+                validator: (v) =>
+                    (v == null || v.isEmpty)
+                        ? LanguageService.tr(vi: 'Không được để trống', en: 'Required')
+                        : null,
               ),
               const SizedBox(height: 20),
               _buildInput(
                 controller: _phoneCtrl,
-                label: 'Số điện thoại',
+                label: LanguageService.tr(vi: 'Số điện thoại', en: 'Phone number'),
                 icon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
-                validator: (v) => (v == null || v.isEmpty) ? 'Không được để trống' : null,
+                validator: (v) =>
+                    (v == null || v.isEmpty)
+                        ? LanguageService.tr(vi: 'Không được để trống', en: 'Required')
+                        : null,
               ),
               const SizedBox(height: 40),
 
@@ -141,7 +158,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
                 child: _isSaving 
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Lưu thay đổi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  : Text(
+                      LanguageService.tr(vi: 'Lưu thay đổi', en: 'Save changes'),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
               ),
             ],
           ),

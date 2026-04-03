@@ -1,4 +1,5 @@
 import '../models/user_model.dart';
+import 'language_service.dart';
 
 /// Mock authentication service – thay thế bằng API thật sau.
 class AuthService {
@@ -27,7 +28,12 @@ class AuthService {
       return _currentUser!;
     }
 
-    throw Exception('Email hoặc mật khẩu không chính xác');
+    throw Exception(
+      LanguageService.tr(
+        vi: 'Email hoặc mật khẩu không chính xác',
+        en: 'Incorrect email or password',
+      ),
+    );
   }
 
   static void logout() {
@@ -39,23 +45,38 @@ class AuthService {
     required String newPassword,
   }) async {
     if (_currentUser == null) {
-      throw Exception('Bạn chưa đăng nhập');
+      throw Exception(LanguageService.tr(vi: 'Bạn chưa đăng nhập', en: 'You are not logged in'));
     }
 
     final oldPass = oldPassword.trim();
     final newPass = newPassword.trim();
 
     if (oldPass.isEmpty || newPass.isEmpty) {
-      throw Exception('Vui lòng nhập đầy đủ thông tin');
+      throw Exception(
+        LanguageService.tr(
+          vi: 'Vui lòng nhập đầy đủ thông tin',
+          en: 'Please fill in all required fields',
+        ),
+      );
     }
     if (oldPass != _currentPassword) {
-      throw Exception('Mật khẩu cũ không đúng');
+      throw Exception(LanguageService.tr(vi: 'Mật khẩu cũ không đúng', en: 'Current password is incorrect'));
     }
     if (newPass.length < 6) {
-      throw Exception('Mật khẩu mới phải có ít nhất 6 ký tự');
+      throw Exception(
+        LanguageService.tr(
+          vi: 'Mật khẩu mới phải có ít nhất 6 ký tự',
+          en: 'New password must be at least 6 characters',
+        ),
+      );
     }
     if (newPass == _currentPassword) {
-      throw Exception('Mật khẩu mới phải khác mật khẩu cũ');
+      throw Exception(
+        LanguageService.tr(
+          vi: 'Mật khẩu mới phải khác mật khẩu cũ',
+          en: 'New password must be different from current password',
+        ),
+      );
     }
 
     _currentPassword = newPass;
@@ -67,7 +88,7 @@ class AuthService {
   }) async {
     final current = _currentUser;
     if (current == null) {
-      throw Exception('Bạn chưa đăng nhập');
+      throw Exception(LanguageService.tr(vi: 'Bạn chưa đăng nhập', en: 'You are not logged in'));
     }
 
     final normalizedName = fullName.trim();

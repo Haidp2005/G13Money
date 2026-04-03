@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/language_service.dart';
 
 class MoneyBottomNav extends StatelessWidget {
 	const MoneyBottomNav({
@@ -38,13 +39,13 @@ class MoneyBottomNav extends StatelessWidget {
 				children: [
 					_NavItem(
 						icon: Icons.home_rounded,
-						label: 'Tổng quan',
+						label: LanguageService.tr(vi: 'Tổng quan', en: 'Overview'),
 						active: currentIndex == 0,
 						onTap: () => onItemTap(0),
 					),
 					_NavItem(
 						icon: Icons.account_balance_wallet_outlined,
-						label: 'Sổ giao dịch',
+						label: LanguageService.tr(vi: 'Sổ giao dịch', en: 'Transactions'),
 						active: currentIndex == 1,
 						onTap: () => onItemTap(1),
 					),
@@ -76,13 +77,13 @@ class MoneyBottomNav extends StatelessWidget {
 					),
 					_NavItem(
 						icon: Icons.content_paste_go_outlined,
-						label: 'Ngân sách',
+						label: LanguageService.tr(vi: 'Ngân sách', en: 'Budgets'),
 						active: currentIndex == 3,
 						onTap: () => onItemTap(3),
 					),
 					_NavItem(
 						icon: Icons.person_outline_rounded,
-						label: 'Tài khoản',
+						label: LanguageService.tr(vi: 'Tài khoản', en: 'Account'),
 						active: currentIndex == 4,
 						onTap: () => onItemTap(4),
 					),

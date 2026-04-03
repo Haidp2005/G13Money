@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
+import '../../../core/services/language_service.dart';
 import '../../shared/widgets/category_helper.dart';
 import '../models/budget.dart';
 import 'budget_form.dart';
@@ -71,7 +72,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openBudgetForm(),
         icon: const Icon(Icons.add),
-        label: const Text('Thêm ngân sách'),
+        label: Text(LanguageService.tr(vi: 'Thêm ngân sách', en: 'Add budget')),
       ),
       body: CustomScrollView(
         slivers: [
@@ -101,7 +102,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Danh sách ngân sách',
+                    LanguageService.tr(vi: 'Danh sách ngân sách', en: 'Budget list'),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -118,7 +119,10 @@ class _BudgetsPageState extends State<BudgetsPage> {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      '${_budgets.length} mục',
+                      LanguageService.tr(
+                        vi: '${_budgets.length} mục',
+                        en: '${_budgets.length} items',
+                      ),
                       style: TextStyle(
                         color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
@@ -185,12 +189,17 @@ class _BudgetsPageState extends State<BudgetsPage> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Xóa ngân sách'),
-        content: Text('Xóa "${budget.title}" khỏi danh sách ngân sách?'),
+        title: Text(LanguageService.tr(vi: 'Xóa ngân sách', en: 'Delete budget')),
+        content: Text(
+          LanguageService.tr(
+            vi: 'Xóa "${budget.title}" khỏi danh sách ngân sách?',
+            en: 'Remove "${budget.title}" from budget list?',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Huỷ'),
+            child: Text(LanguageService.tr(vi: 'Huỷ', en: 'Cancel')),
           ),
           FilledButton(
             onPressed: () {
@@ -199,7 +208,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
                 () => _budgets.removeWhere((item) => item.id == budget.id),
               );
             },
-            child: const Text('Xóa'),
+            child: Text(LanguageService.tr(vi: 'Xóa', en: 'Delete')),
           ),
         ],
       ),
@@ -250,8 +259,8 @@ class _Header extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Ngân sách',
+                  Text(
+                    LanguageService.tr(vi: 'Ngân sách', en: 'Budgets'),
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 32,
@@ -280,7 +289,10 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Theo dõi hạn mức theo từng danh mục trong tháng hiện tại.',
+                LanguageService.tr(
+                  vi: 'Theo dõi hạn mức theo từng danh mục trong tháng hiện tại.',
+                  en: 'Track spending limits by category for this month.',
+                ),
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.86),
                   fontSize: 13,
@@ -305,21 +317,21 @@ class _Header extends StatelessWidget {
                       children: [
                         Expanded(
                           child: _SummaryTile(
-                            label: 'Tổng thu',
+                            label: LanguageService.tr(vi: 'Tổng thu', en: 'Income'),
                             value: _formatMoney(totalIncome),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _SummaryTile(
-                            label: 'Tổng chi',
+                            label: LanguageService.tr(vi: 'Tổng chi', en: 'Spent'),
                             value: _formatMoney(totalSpent),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _SummaryTile(
-                            label: 'Ngày còn lại',
+                            label: LanguageService.tr(vi: 'Ngày còn lại', en: 'Days left'),
                             value: '$daysRemaining',
                           ),
                         ),
@@ -363,7 +375,10 @@ class _LimitSummaryCard extends StatelessWidget {
         ],
       ),
       child: Text(
-        'Hạn mức có thể chi: ${_formatMoney(remainingBudgetLimit)}',
+        LanguageService.tr(
+          vi: 'Hạn mức có thể chi: ${_formatMoney(remainingBudgetLimit)}',
+          en: 'Available budget: ${_formatMoney(remainingBudgetLimit)}',
+        ),
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w700,
@@ -632,9 +647,15 @@ class _BudgetCard extends StatelessWidget {
                       onDelete();
                     }
                   },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Chỉnh sửa')),
-                    PopupMenuItem(value: 'delete', child: Text('Xóa')),
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text(LanguageService.tr(vi: 'Chỉnh sửa', en: 'Edit')),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(LanguageService.tr(vi: 'Xóa', en: 'Delete')),
+                    ),
                   ],
                 ),
               ],
@@ -644,7 +665,7 @@ class _BudgetCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _StatItem(
-                    label: 'Đã chi',
+                    label: LanguageService.tr(vi: 'Đã chi', en: 'Spent'),
                     value: _formatMoney(budget.spent),
                     highlight: budget.isOverBudget,
                   ),
@@ -652,7 +673,7 @@ class _BudgetCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _StatItem(
-                    label: 'Hạn mức',
+                    label: LanguageService.tr(vi: 'Hạn mức', en: 'Limit'),
                     value: _formatMoney(budget.limit),
                   ),
                 ),
@@ -673,7 +694,10 @@ class _BudgetCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${budget.usageLabel} đã dùng',
+                  LanguageService.tr(
+                    vi: '${budget.usageLabel} đã dùng',
+                    en: '${budget.usageLabel} used',
+                  ),
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: progressColor,
@@ -681,8 +705,14 @@ class _BudgetCard extends StatelessWidget {
                 ),
                 Text(
                   budget.isOverBudget
-                      ? 'Vượt ${_formatMoney(budget.spent - budget.limit)}'
-                      : 'Còn lại ${_formatMoney(budget.remaining)}',
+                      ? LanguageService.tr(
+                          vi: 'Vượt ${_formatMoney(budget.spent - budget.limit)}',
+                          en: 'Exceeded ${_formatMoney(budget.spent - budget.limit)}',
+                        )
+                      : LanguageService.tr(
+                          vi: 'Còn lại ${_formatMoney(budget.remaining)}',
+                          en: 'Remaining ${_formatMoney(budget.remaining)}',
+                        ),
                   style: TextStyle(color: scheme.outline, fontSize: 12),
                 ),
               ],
@@ -766,14 +796,17 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Chưa có ngân sách nào',
+            Text(
+              LanguageService.tr(vi: 'Chưa có ngân sách nào', en: 'No budgets yet'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
-              'Tạo ngân sách đầu tiên để theo dõi hạn mức chi tiêu theo danh mục.',
+              LanguageService.tr(
+                vi: 'Tạo ngân sách đầu tiên để theo dõi hạn mức chi tiêu theo danh mục.',
+                en: 'Create your first budget to track category spending limits.',
+              ),
               textAlign: TextAlign.center,
               style: TextStyle(color: scheme.outline),
             ),
@@ -781,7 +814,7 @@ class _EmptyState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.add),
-              label: const Text('Tạo ngân sách'),
+              label: Text(LanguageService.tr(vi: 'Tạo ngân sách', en: 'Create budget')),
             ),
           ],
         ),

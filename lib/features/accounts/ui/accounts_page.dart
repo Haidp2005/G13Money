@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/language_service.dart';
 import '../../auth/ui/login_page.dart';
 import '../../../core/models/user_model.dart';
 import '../../../app/routes.dart';
@@ -40,7 +41,7 @@ class _ProfileView extends StatelessWidget {
             ),
             actions: [
               IconButton(
-                tooltip: 'Chỉnh sửa',
+                tooltip: LanguageService.tr(vi: 'Chỉnh sửa', en: 'Edit'),
                 icon: const Icon(Icons.edit_outlined, color: Colors.white),
                 onPressed: () =>
                     Navigator.pushNamed(context, AppRoutes.editProfile),
@@ -117,8 +118,8 @@ class _HeaderBackground extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
-                'Tài khoản của tôi',
+              child: Text(
+                LanguageService.tr(vi: 'Tài khoản của tôi', en: 'My account'),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -186,7 +187,7 @@ void _showInfoBottomSheet(
               ),
               const SizedBox(width: 14),
               Text(
-                'Thông tin cá nhân',
+                LanguageService.tr(vi: 'Thông tin cá nhân', en: 'Personal information'),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -200,7 +201,7 @@ void _showInfoBottomSheet(
           const SizedBox(height: 8),
           _InfoRow(
             icon: Icons.badge_outlined,
-            label: 'Họ và tên',
+            label: LanguageService.tr(vi: 'Họ và tên', en: 'Full name'),
             value: user.fullName,
             scheme: scheme,
           ),
@@ -214,14 +215,14 @@ void _showInfoBottomSheet(
           const Divider(height: 1, indent: 48),
           _InfoRow(
             icon: Icons.phone_outlined,
-            label: 'Số điện thoại',
+            label: LanguageService.tr(vi: 'Số điện thoại', en: 'Phone number'),
             value: user.phone,
             scheme: scheme,
           ),
           const Divider(height: 1, indent: 48),
           _InfoRow(
             icon: Icons.calendar_today_outlined,
-            label: 'Ngày tham gia',
+            label: LanguageService.tr(vi: 'Ngày tham gia', en: 'Joined date'),
             value: joinedStr,
             scheme: scheme,
           ),
@@ -294,31 +295,50 @@ class _MenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = [
-      (Icons.notifications_outlined, 'Thông báo', 'Quản lý thông báo'),
-      (
-        Icons.account_balance_wallet_outlined,
-        'Ngân sách',
-        'Hạn mức chi tiêu theo danh mục',
+    final settings = <_SettingEntry>[
+      _SettingEntry(
+        icon: Icons.notifications_outlined,
+        title: LanguageService.tr(vi: 'Thông báo', en: 'Notifications'),
+        subtitle: LanguageService.tr(vi: 'Quản lý thông báo', en: 'Manage notifications'),
       ),
-      (Icons.lock_outline, 'Bảo mật', 'Đổi mật khẩu & bảo mật'),
-      (Icons.language_outlined, 'Ngôn ngữ', 'Tiếng Việt'),
-      (Icons.color_lens_outlined, 'Giao diện', 'Chủ đề sáng'),
-      (Icons.help_outline, 'Trợ giúp', 'FAQ & hỗ trợ'),
+      _SettingEntry(
+        icon: Icons.account_balance_wallet_outlined,
+        title: LanguageService.tr(vi: 'Ngân sách', en: 'Budgets'),
+        subtitle: LanguageService.tr(
+          vi: 'Hạn mức chi tiêu theo danh mục',
+          en: 'Spending limits by category',
+        ),
+      ),
+      _SettingEntry(
+        icon: Icons.lock_outline,
+        title: LanguageService.tr(vi: 'Bảo mật', en: 'Security'),
+        subtitle: LanguageService.tr(vi: 'Đổi mật khẩu & bảo mật', en: 'Password & security'),
+      ),
+      _SettingEntry(
+        icon: Icons.language_outlined,
+        title: LanguageService.tr(vi: 'Ngôn ngữ', en: 'Language'),
+        subtitle: LanguageService.currentLanguageLabel,
+      ),
+      _SettingEntry(
+        icon: Icons.color_lens_outlined,
+        title: LanguageService.tr(vi: 'Giao diện', en: 'Appearance'),
+        subtitle: LanguageService.tr(vi: 'Chủ đề sáng', en: 'Light theme'),
+      ),
+      _SettingEntry(
+        icon: Icons.help_outline,
+        title: LanguageService.tr(vi: 'Trợ giúp', en: 'Help'),
+        subtitle: LanguageService.tr(vi: 'FAQ & hỗ trợ', en: 'FAQ & support'),
+      ),
     ];
 
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Thông tin cá nhân (nút bấm) ──────────────────────────
-          _CardTitle('Tài khoản', scheme),
+          _CardTitle(LanguageService.tr(vi: 'Tài khoản', en: 'Account'), scheme),
           const SizedBox(height: 4),
           ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 0,
-              vertical: 2,
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
             leading: Container(
               width: 38,
               height: 38,
@@ -326,42 +346,42 @@ class _MenuCard extends StatelessWidget {
                 color: scheme.primaryContainer,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                Icons.person_outline,
-                size: 20,
-                color: scheme.primary,
-              ),
+              child: Icon(Icons.person_outline, size: 20, color: scheme.primary),
             ),
-            title: const Text(
-              'Thông tin cá nhân',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            title: Text(
+              LanguageService.tr(vi: 'Thông tin cá nhân', en: 'Personal information'),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
             subtitle: Text(
-              'Xem thông tin tài khoản của bạn',
+              LanguageService.tr(
+                vi: 'Xem thông tin tài khoản của bạn',
+                en: 'View your account information',
+              ),
               style: TextStyle(fontSize: 12, color: scheme.outline),
             ),
             trailing: Icon(Icons.chevron_right, color: scheme.outline),
             onTap: () => _showInfoBottomSheet(context, user, scheme),
           ),
           const Divider(height: 8),
-          // ── Cài đặt ──────────────────────────────────────────────
-          _CardTitle('Cài đặt', scheme),
+          _CardTitle(LanguageService.tr(vi: 'Cài đặt', en: 'Settings'), scheme),
           const SizedBox(height: 4),
           ...settings.map(
             (item) => _MenuItem(
-              icon: item.$1,
-              title: item.$2,
-              subtitle: item.$3,
+              icon: item.icon,
+              title: item.title,
+              subtitle: item.subtitle,
               scheme: scheme,
               onTap: () {
-                if (item.$2 == 'Ngân sách') {
+                if (item.icon == Icons.account_balance_wallet_outlined) {
                   Navigator.pushReplacementNamed(
                     context,
                     AppRoutes.home,
                     arguments: 3,
                   );
-                } else if (item.$2 == 'Bảo mật') {
+                } else if (item.icon == Icons.lock_outline) {
                   Navigator.pushNamed(context, AppRoutes.changePassword);
+                } else if (item.icon == Icons.language_outlined) {
+                  _showLanguageBottomSheet(context);
                 }
               },
             ),
@@ -370,6 +390,74 @@ class _MenuCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SettingEntry {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _SettingEntry({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+}
+
+void _showLanguageBottomSheet(BuildContext context) {
+  final scheme = Theme.of(context).colorScheme;
+
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (_) => SafeArea(
+      child: ValueListenableBuilder<AppLanguage>(
+        valueListenable: LanguageService.notifier,
+        builder: (context, selectedLanguage, __) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  LanguageService.tr(vi: 'Chọn ngôn ngữ', en: 'Choose language'),
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                RadioListTile<AppLanguage>(
+                  value: AppLanguage.vietnamese,
+                  groupValue: selectedLanguage,
+                  title: const Text('Tiếng Việt'),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    LanguageService.setLanguage(value);
+                    Navigator.pop(context);
+                  },
+                ),
+                RadioListTile<AppLanguage>(
+                  value: AppLanguage.english,
+                  groupValue: selectedLanguage,
+                  title: const Text('English'),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    LanguageService.setLanguage(value);
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
 }
 
 class _MenuItem extends StatelessWidget {
@@ -426,7 +514,7 @@ class _LogoutButton extends StatelessWidget {
       child: OutlinedButton.icon(
         onPressed: () => _confirmLogout(context),
         icon: const Icon(Icons.logout_rounded),
-        label: const Text('Đăng xuất'),
+        label: Text(LanguageService.tr(vi: 'Đăng xuất', en: 'Log out')),
         style: OutlinedButton.styleFrom(
           foregroundColor: scheme.error,
           side: BorderSide(color: scheme.error.withValues(alpha: 0.5)),
@@ -443,12 +531,17 @@ class _LogoutButton extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Đăng xuất'),
-        content: const Text('Bạn có chắc chắn muốn đăng xuất không?'),
+        title: Text(LanguageService.tr(vi: 'Đăng xuất', en: 'Log out')),
+        content: Text(
+          LanguageService.tr(
+            vi: 'Bạn có chắc chắn muốn đăng xuất không?',
+            en: 'Are you sure you want to log out?',
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Huỷ'),
+            child: Text(LanguageService.tr(vi: 'Huỷ', en: 'Cancel')),
           ),
           TextButton(
             onPressed: () {
@@ -461,7 +554,7 @@ class _LogoutButton extends StatelessWidget {
               );
             },
             child: Text(
-              'Đăng xuất',
+              LanguageService.tr(vi: 'Đăng xuất', en: 'Log out'),
               style: TextStyle(color: Theme.of(ctx).colorScheme.error),
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/language_service.dart';
 import '../../../app/routes.dart';
 
 class LoginPage extends StatefulWidget {
@@ -235,7 +236,10 @@ class _Logo extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Quản lý tài chính thông minh',
+          LanguageService.tr(
+            vi: 'Quản lý tài chính thông minh',
+            en: 'Smart personal finance management',
+          ),
           style: TextStyle(
             fontSize: 14,
             color: Colors.white.withValues(alpha: 0.8),
@@ -293,7 +297,7 @@ class _FormCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Đăng nhập',
+              LanguageService.tr(vi: 'Đăng nhập', en: 'Sign in'),
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
@@ -302,7 +306,10 @@ class _FormCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Chào mừng trở lại! Vui lòng nhập thông tin.',
+              LanguageService.tr(
+                vi: 'Chào mừng trở lại! Vui lòng nhập thông tin.',
+                en: 'Welcome back! Please enter your credentials.',
+              ),
               style: TextStyle(fontSize: 13, color: scheme.outline),
             ),
             const SizedBox(height: 24),
@@ -316,8 +323,18 @@ class _FormCard extends StatelessWidget {
               keyboardType: TextInputType.emailAddress,
               scheme: scheme,
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Vui lòng nhập email';
-                if (!v.contains('@')) return 'Email không hợp lệ';
+                if (v == null || v.trim().isEmpty) {
+                  return LanguageService.tr(
+                    vi: 'Vui lòng nhập email',
+                    en: 'Please enter email',
+                  );
+                }
+                if (!v.contains('@')) {
+                  return LanguageService.tr(
+                    vi: 'Email không hợp lệ',
+                    en: 'Invalid email address',
+                  );
+                }
                 return null;
               },
             ),
@@ -326,7 +343,7 @@ class _FormCard extends StatelessWidget {
             // Password field
             _InputField(
               controller: passCtrl,
-              label: 'Mật khẩu',
+              label: LanguageService.tr(vi: 'Mật khẩu', en: 'Password'),
               hint: '••••••',
               prefixIcon: Icons.lock_outline,
               obscureText: obscure,
@@ -342,8 +359,18 @@ class _FormCard extends StatelessWidget {
                 onPressed: onToggleObscure,
               ),
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Vui lòng nhập mật khẩu';
-                if (v.length < 6) return 'Mật khẩu tối thiểu 6 ký tự';
+                if (v == null || v.isEmpty) {
+                  return LanguageService.tr(
+                    vi: 'Vui lòng nhập mật khẩu',
+                    en: 'Please enter password',
+                  );
+                }
+                if (v.length < 6) {
+                  return LanguageService.tr(
+                    vi: 'Mật khẩu tối thiểu 6 ký tự',
+                    en: 'Password must be at least 6 characters',
+                  );
+                }
                 return null;
               },
             ),
@@ -360,7 +387,7 @@ class _FormCard extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  'Quên mật khẩu?',
+                  LanguageService.tr(vi: 'Quên mật khẩu?', en: 'Forgot password?'),
                   style: TextStyle(
                     fontSize: 13,
                     color: scheme.primary,
@@ -422,8 +449,8 @@ class _FormCard extends StatelessWidget {
                           color: Colors.white,
                         ),
                       )
-                    : const Text(
-                        'Đăng nhập',
+                    : Text(
+                      LanguageService.tr(vi: 'Đăng nhập', en: 'Sign in'),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -511,7 +538,7 @@ class _HintText extends StatelessWidget {
     return Column(
       children: [
         Text(
-          'Tài khoản demo:',
+          LanguageService.tr(vi: 'Tài khoản demo:', en: 'Demo account:'),
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.7),
             fontSize: 12,

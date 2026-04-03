@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/language_service.dart';
 
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key});
@@ -42,7 +43,14 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đổi mật khẩu thành công')),
+        SnackBar(
+          content: Text(
+            LanguageService.tr(
+              vi: 'Đổi mật khẩu thành công',
+              en: 'Password changed successfully',
+            ),
+          ),
+        ),
       );
       Navigator.pop(context);
     } catch (e) {
@@ -60,7 +68,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Đổi mật khẩu'),
+        title: Text(LanguageService.tr(vi: 'Đổi mật khẩu', en: 'Change password')),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -71,13 +79,16 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             children: [
               _buildPasswordField(
                 controller: _oldPasswordCtrl,
-                label: 'Mật khẩu cũ',
+                label: LanguageService.tr(vi: 'Mật khẩu cũ', en: 'Current password'),
                 icon: Icons.lock_outline,
                 obscure: _obscureOld,
                 onToggleObscure: () => setState(() => _obscureOld = !_obscureOld),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return 'Vui lòng nhập mật khẩu cũ';
+                    return LanguageService.tr(
+                      vi: 'Vui lòng nhập mật khẩu cũ',
+                      en: 'Please enter current password',
+                    );
                   }
                   return null;
                 },
@@ -85,16 +96,19 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               const SizedBox(height: 16),
               _buildPasswordField(
                 controller: _newPasswordCtrl,
-                label: 'Mật khẩu mới',
+                label: LanguageService.tr(vi: 'Mật khẩu mới', en: 'New password'),
                 icon: Icons.lock_reset,
                 obscure: _obscureNew,
                 onToggleObscure: () => setState(() => _obscureNew = !_obscureNew),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return 'Vui lòng nhập mật khẩu mới';
+                    return LanguageService.tr(
+                      vi: 'Vui lòng nhập mật khẩu mới',
+                      en: 'Please enter new password',
+                    );
                   }
                   if (v.trim().length < 6) {
-                    return 'Tối thiểu 6 ký tự';
+                    return LanguageService.tr(vi: 'Tối thiểu 6 ký tự', en: 'Minimum 6 characters');
                   }
                   return null;
                 },
@@ -102,17 +116,26 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               const SizedBox(height: 16),
               _buildPasswordField(
                 controller: _confirmPasswordCtrl,
-                label: 'Xác nhận mật khẩu mới',
+                label: LanguageService.tr(
+                  vi: 'Xác nhận mật khẩu mới',
+                  en: 'Confirm new password',
+                ),
                 icon: Icons.verified_user_outlined,
                 obscure: _obscureConfirm,
                 onToggleObscure: () =>
                     setState(() => _obscureConfirm = !_obscureConfirm),
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
-                    return 'Vui lòng xác nhận mật khẩu mới';
+                    return LanguageService.tr(
+                      vi: 'Vui lòng xác nhận mật khẩu mới',
+                      en: 'Please confirm new password',
+                    );
                   }
                   if (v.trim() != _newPasswordCtrl.text.trim()) {
-                    return 'Mật khẩu xác nhận không khớp';
+                    return LanguageService.tr(
+                      vi: 'Mật khẩu xác nhận không khớp',
+                      en: 'Password confirmation does not match',
+                    );
                   }
                   return null;
                 },
@@ -139,7 +162,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Lưu mật khẩu mới'),
+                      : Text(
+                          LanguageService.tr(
+                            vi: 'Lưu mật khẩu mới',
+                            en: 'Save new password',
+                          ),
+                        ),
                 ),
               ),
             ],

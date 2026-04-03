@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/language_service.dart';
 import '../../shared/widgets/category_helper.dart';
 
 class TransactionForm extends StatefulWidget {
@@ -73,7 +74,7 @@ class _TransactionFormState extends State<TransactionForm> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Thêm giao dịch',
+          LanguageService.tr(vi: 'Thêm giao dịch', en: 'Add transaction'),
           style: TextStyle(
             color: scheme.onSurface,
             fontSize: 18,
@@ -102,12 +103,12 @@ class _TransactionFormState extends State<TransactionForm> {
               _buildTypeToggle(scheme),
               const SizedBox(height: 24),
               // ── Amount Input ──
-              _buildFieldLabel('Số tiền', scheme),
+              _buildFieldLabel(LanguageService.tr(vi: 'Số tiền', en: 'Amount'), scheme),
               const SizedBox(height: 10),
               _buildAmountField(scheme),
               const SizedBox(height: 24),
               // ── Category Selector ──
-              _buildFieldLabel('Hạng mục', scheme),
+              _buildFieldLabel(LanguageService.tr(vi: 'Hạng mục', en: 'Category'), scheme),
               const SizedBox(height: 10),
               _buildSelectorField(
                 icon: CategoryHelper.iconFor(_selectedCategory),
@@ -120,7 +121,7 @@ class _TransactionFormState extends State<TransactionForm> {
               ),
               const SizedBox(height: 24),
               // ── Wallet Selector ──
-              _buildFieldLabel('Tài khoản', scheme),
+              _buildFieldLabel(LanguageService.tr(vi: 'Tài khoản', en: 'Account'), scheme),
               const SizedBox(height: 10),
               _buildSelectorField(
                 icon: Icons.account_balance_wallet_rounded,
@@ -133,7 +134,7 @@ class _TransactionFormState extends State<TransactionForm> {
               ),
               const SizedBox(height: 24),
               // ── Date Selector ──
-              _buildFieldLabel('Ngày', scheme),
+              _buildFieldLabel(LanguageService.tr(vi: 'Ngày', en: 'Date'), scheme),
               const SizedBox(height: 10),
               _buildSelectorField(
                 icon: Icons.calendar_today_rounded,
@@ -144,7 +145,7 @@ class _TransactionFormState extends State<TransactionForm> {
               ),
               const SizedBox(height: 24),
               // ── Note Field ──
-              _buildFieldLabel('Ghi chú', scheme),
+              _buildFieldLabel(LanguageService.tr(vi: 'Ghi chú', en: 'Note'), scheme),
               const SizedBox(height: 10),
               _buildNoteField(scheme),
             ],
@@ -176,7 +177,7 @@ class _TransactionFormState extends State<TransactionForm> {
         children: [
           Expanded(
             child: _toggleItem(
-              label: 'Chi tiêu',
+              label: LanguageService.tr(vi: 'Chi tiêu', en: 'Expense'),
               isSelected: !_isIncome,
               selectedColor: const Color(0xFFFF6B6B),
               onTap: () => setState(() => _isIncome = false),
@@ -185,7 +186,7 @@ class _TransactionFormState extends State<TransactionForm> {
           ),
           Expanded(
             child: _toggleItem(
-              label: 'Thu nhập',
+              label: LanguageService.tr(vi: 'Thu nhập', en: 'Income'),
               isSelected: _isIncome,
               selectedColor: const Color(0xFF2DCC5A),
               onTap: () => setState(() => _isIncome = true),
@@ -287,8 +288,12 @@ class _TransactionFormState extends State<TransactionForm> {
           contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
         ),
         validator: (value) {
-          if (value == null || value.isEmpty) return 'Vui lòng nhập số tiền';
-          if (double.tryParse(value.replaceAll(',', '')) == null) return 'Số tiền không hợp lệ';
+          if (value == null || value.isEmpty) {
+            return LanguageService.tr(vi: 'Vui lòng nhập số tiền', en: 'Please enter amount');
+          }
+          if (double.tryParse(value.replaceAll(',', '')) == null) {
+            return LanguageService.tr(vi: 'Số tiền không hợp lệ', en: 'Invalid amount');
+          }
           return null;
         },
       ),
@@ -359,7 +364,7 @@ class _TransactionFormState extends State<TransactionForm> {
           fontSize: 15,
         ),
         decoration: InputDecoration(
-          hintText: 'Nhập ghi chú...',
+          hintText: LanguageService.tr(vi: 'Nhập ghi chú...', en: 'Enter a note...'),
           hintStyle: TextStyle(
             color: scheme.outlineVariant,
             fontSize: 15,
