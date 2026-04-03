@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "532397582068",
+    "project_id": "g13pals",
+    "storage_bucket": "g13pals.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:532397582068:android:e79e0ea27fb7b3b17160a1",
+        "android_client_info": {
+          "package_name": "com.example.g13money"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUPjx65wwNddyi5CnXY3KWvzfZV29kSKs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

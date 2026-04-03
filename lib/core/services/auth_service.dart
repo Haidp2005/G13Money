@@ -1,42 +1,46 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/user_model.dart';
 import 'language_service.dart';
 
-/// Mock authentication service – thay thế bằng API thật sau.
 class AuthService {
+  AuthService._();
+
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _db = FirebaseFirestore.instance;
+
   static UserModel? _currentUser;
-  static String _currentPassword = '123456';
 
   static UserModel? get currentUser => _currentUser;
-  static bool get isLoggedIn => _currentUser != null;
+  static bool get isLoggedIn => _auth.currentUser != null;
+  static String? get currentUserId => _auth.currentUser?.uid;
 
-  /// Trả về [UserModel] nếu thành công, ném [Exception] nếu sai thông tin.
-  static Future<UserModel> login(String email, String password) async {
-    // Giả lập độ trễ mạng
-    await Future.delayed(const Duration(milliseconds: 1200));
-
-    // Mock credentials
-    if (email.trim().toLowerCase() == 'admin@g13.com' &&
-      password == _currentPassword) {
-      _currentUser = UserModel(
-        id: 'usr_001',
-        fullName: 'Nguyễn Văn An',
-        email: email.trim().toLowerCase(),
-        phone: '0987 654 321',
-        avatarInitials: 'NA',
-        joinedDate: DateTime(2025, 3, 1),
-      );
-      return _currentUser!;
+  static Future<UserModel?> restoreSession() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      _currentUser = null;
+      return null;
     }
-
-    throw Exception(
-      LanguageService.tr(
-        vi: 'Email hoặc mật khẩu không chính xác',
-        en: 'Incorrect email or password',
-      ),
-    );
+    _currentUser = await _upsertAndReadUserModel(user);
+    return _currentUser;
   }
 
-  static void logout() {
+  static Future<UserModel> login(String email, String password) async {
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      _currentUser = await _upsertAndReadUserModel(credential.user!);
+      return _currentUser!;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_authErrorMessage(e.code));
+    }
+  }
+
+  static Future<void> logout() async {
+    await _auth.signOut();
     _currentUser = null;
   }
 
@@ -44,7 +48,8 @@ class AuthService {
     required String oldPassword,
     required String newPassword,
   }) async {
-    if (_currentUser == null) {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) {
       throw Exception(LanguageService.tr(vi: 'Bạn chưa đăng nhập', en: 'You are not logged in'));
     }
 
@@ -59,9 +64,6 @@ class AuthService {
         ),
       );
     }
-    if (oldPass != _currentPassword) {
-      throw Exception(LanguageService.tr(vi: 'Mật khẩu cũ không đúng', en: 'Current password is incorrect'));
-    }
     if (newPass.length < 6) {
       throw Exception(
         LanguageService.tr(
@@ -70,35 +72,169 @@ class AuthService {
         ),
       );
     }
-    if (newPass == _currentPassword) {
-      throw Exception(
-        LanguageService.tr(
-          vi: 'Mật khẩu mới phải khác mật khẩu cũ',
-          en: 'New password must be different from current password',
-        ),
-      );
-    }
 
-    _currentPassword = newPass;
+    try {
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: oldPass,
+      );
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPass);
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_authErrorMessage(e.code));
+    }
   }
 
   static Future<void> updateCurrentUserProfile({
     required String fullName,
     required String phone,
   }) async {
-    final current = _currentUser;
-    if (current == null) {
+    final user = _auth.currentUser;
+    if (user == null) {
       throw Exception(LanguageService.tr(vi: 'Bạn chưa đăng nhập', en: 'You are not logged in'));
     }
 
     final normalizedName = fullName.trim();
     final normalizedPhone = phone.trim();
+    final initials = _buildInitials(normalizedName);
 
-    _currentUser = current.copyWith(
+    await _db.collection('users').doc(user.uid).set({
+      'fullName': normalizedName,
+      'phone': normalizedPhone,
+      'avatarInitials': initials,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await user.updateDisplayName(normalizedName);
+
+    _currentUser = (_currentUser ?? _fallbackModel(user)).copyWith(
       fullName: normalizedName,
       phone: normalizedPhone,
-      avatarInitials: _buildInitials(normalizedName),
+      avatarInitials: initials,
     );
+  }
+
+  static Future<UserModel> _upsertAndReadUserModel(User user) async {
+    final docRef = _db.collection('users').doc(user.uid);
+    final snapshot = await docRef.get();
+    final now = DateTime.now();
+
+    if (!snapshot.exists) {
+      final fullName = (user.displayName ?? '').trim().isEmpty
+          ? _displayNameFromEmail(user.email)
+          : user.displayName!.trim();
+      final model = UserModel(
+        id: user.uid,
+        fullName: fullName,
+        email: (user.email ?? '').trim().toLowerCase(),
+        phone: '',
+        avatarInitials: _buildInitials(fullName),
+        joinedDate: now,
+      );
+
+      await docRef.set({
+        'fullName': model.fullName,
+        'email': model.email,
+        'phone': model.phone,
+        'avatarInitials': model.avatarInitials,
+        'joinedAt': Timestamp.fromDate(model.joinedDate),
+        'currency': 'VND',
+        'locale': 'vi',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return model;
+    }
+
+    final data = snapshot.data()!;
+    final fullName = (data['fullName'] as String?)?.trim();
+    final email = (data['email'] as String?)?.trim().toLowerCase();
+    final phone = (data['phone'] as String?)?.trim();
+    final avatarInitials = (data['avatarInitials'] as String?)?.trim();
+    final joinedAt = _asDateTime(data['joinedAt']) ?? now;
+
+    return UserModel(
+      id: user.uid,
+      fullName: (fullName == null || fullName.isEmpty)
+          ? _displayNameFromEmail(user.email)
+          : fullName,
+      email: (email == null || email.isEmpty)
+          ? (user.email ?? '').trim().toLowerCase()
+          : email,
+      phone: phone ?? '',
+      avatarInitials: (avatarInitials == null || avatarInitials.isEmpty)
+          ? _buildInitials(fullName ?? _displayNameFromEmail(user.email))
+          : avatarInitials,
+      joinedDate: joinedAt,
+    );
+  }
+
+  static UserModel _fallbackModel(User user) {
+    final fullName = _displayNameFromEmail(user.email);
+    return UserModel(
+      id: user.uid,
+      fullName: fullName,
+      email: (user.email ?? '').trim().toLowerCase(),
+      phone: '',
+      avatarInitials: _buildInitials(fullName),
+      joinedDate: DateTime.now(),
+    );
+  }
+
+  static DateTime? _asDateTime(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    if (value is DateTime) {
+      return value;
+    }
+    return null;
+  }
+
+  static String _displayNameFromEmail(String? email) {
+    final raw = (email ?? '').split('@').first.replaceAll('.', ' ').trim();
+    if (raw.isEmpty) {
+      return 'User';
+    }
+    final words = raw
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+    return words;
+  }
+
+  static String _authErrorMessage(String code) {
+    switch (code) {
+      case 'invalid-credential':
+      case 'wrong-password':
+      case 'user-not-found':
+        return LanguageService.tr(
+          vi: 'Email hoặc mật khẩu không chính xác',
+          en: 'Incorrect email or password',
+        );
+      case 'user-disabled':
+        return LanguageService.tr(
+          vi: 'Tài khoản đã bị vô hiệu hóa',
+          en: 'This account has been disabled',
+        );
+      case 'too-many-requests':
+        return LanguageService.tr(
+          vi: 'Bạn thử lại sau ít phút',
+          en: 'Too many attempts, try again later',
+        );
+      case 'requires-recent-login':
+        return LanguageService.tr(
+          vi: 'Vui lòng đăng nhập lại để tiếp tục',
+          en: 'Please sign in again to continue',
+        );
+      default:
+        return LanguageService.tr(
+          vi: 'Có lỗi xác thực. Vui lòng thử lại',
+          en: 'Authentication error. Please try again',
+        );
+    }
   }
 
   static String _buildInitials(String fullName) {

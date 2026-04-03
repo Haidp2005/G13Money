@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
+import '../data/budgets_repository.dart';
 import '../../transactions/data/transactions_repository.dart';
 import '../../transactions/models/transaction.dart';
 import '../models/budget.dart';
@@ -14,44 +15,30 @@ class BudgetsPage extends StatefulWidget {
 }
 
 class _BudgetsPageState extends State<BudgetsPage> {
-  final List<Budget> _budgets = [
-    Budget(
-      id: 'budget-food',
-      title: 'Ăn uống tháng 4',
-      category: 'Ăn uống',
-      walletName: 'Tiền mặt',
-      limit: 3000000,
-      spent: 1850000,
-      startDate: DateTime(2026, 4, 1),
-      endDate: DateTime(2026, 4, 30),
-      color: const Color(0xFFE07A5F),
-      icon: Icons.restaurant_outlined,
-    ),
-    Budget(
-      id: 'budget-transport',
-      title: 'Di chuyển',
-      category: 'Di chuyển',
-      walletName: 'Vietcombank',
-      limit: 1200000,
-      spent: 620000,
-      startDate: DateTime(2026, 4, 1),
-      endDate: DateTime(2026, 4, 30),
-      color: const Color(0xFF3D5A80),
-      icon: Icons.directions_car_outlined,
-    ),
-    Budget(
-      id: 'budget-shopping',
-      title: 'Mua sắm cá nhân',
-      category: 'Mua sắm',
-      walletName: 'Tất cả loại ví',
-      limit: 2500000,
-      spent: 2350000,
-      startDate: DateTime(2026, 4, 1),
-      endDate: DateTime(2026, 4, 30),
-      color: const Color(0xFF9B5DE5),
-      icon: Icons.shopping_bag_outlined,
-    ),
-  ];
+  final List<Budget> _budgets = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    await Future.wait([
+      TransactionsRepository.instance.loadTransactions(),
+      BudgetsRepository.instance.loadBudgets(),
+    ]);
+
+    _budgets
+      ..clear()
+      ..addAll(BudgetsRepository.instance.budgets);
+
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +76,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openBudgetForm(),
+        onPressed: _isLoading ? null : () => _openBudgetForm(),
         icon: const Icon(Icons.add),
         label: const Text('Thêm ngân sách'),
       ),
@@ -152,7 +139,12 @@ class _BudgetsPageState extends State<BudgetsPage> {
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 60),
-            sliver: _budgets.isEmpty
+            sliver: _isLoading
+                ? const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : _budgets.isEmpty
                 ? SliverFillRemaining(
                     hasScrollBody: false,
                     child: _EmptyState(onCreate: _openBudgetForm),
@@ -191,6 +183,8 @@ class _BudgetsPageState extends State<BudgetsPage> {
 
     if (result == null || !mounted) return;
 
+    await BudgetsRepository.instance.upsertBudget(result);
+    if (!mounted) return;
     setState(() {
       final index = _budgets.indexWhere((item) => item.id == result.id);
       if (index >= 0) {
@@ -213,7 +207,9 @@ class _BudgetsPageState extends State<BudgetsPage> {
             child: const Text('Huỷ'),
           ),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
+              await BudgetsRepository.instance.deleteBudget(budget.id);
+              if (!dialogContext.mounted) return;
               Navigator.pop(dialogContext);
               setState(
                 () => _budgets.removeWhere((item) => item.id == budget.id),
@@ -230,7 +226,10 @@ class _BudgetsPageState extends State<BudgetsPage> {
     final normalizedCategory = budget.category.trim().toLowerCase();
     final normalizedWallet = budget.walletName.trim().toLowerCase();
     final useAllWallets =
-        normalizedWallet == 'tất cả ví' || normalizedWallet == 'tất cả loại ví';
+      normalizedWallet == 'tất cả ví' ||
+      normalizedWallet == 'tất cả loại ví' ||
+      normalizedWallet == 'tat ca vi' ||
+      normalizedWallet == 'all';
 
     return transactions
         .where((item) => !item.isIncome)

@@ -16,6 +16,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
   int _touchedExpenseIndex = -1;
 
   @override
+  void initState() {
+    super.initState();
+    _loadTransactions();
+  }
+
+  Future<void> _loadTransactions() async {
+    await TransactionsRepository.instance.loadTransactions();
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     
@@ -41,7 +53,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0.5,
-        shadowColor: scheme.shadow.withOpacity(0.2),
+        shadowColor: scheme.shadow.withValues(alpha: 0.2),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -153,7 +165,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
             side: BorderSide(
-              color: scheme.primary.withOpacity(0.2),
+              color: scheme.primary.withValues(alpha: 0.2),
             ),
           ),
           child: Padding(
@@ -178,7 +190,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         'Xem báo cáo không giới hạn',
                         style: TextStyle(
                           fontSize: 13,
-                          color: scheme.onPrimaryContainer.withOpacity(0.8),
+                          color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
                         ),
                       ),
                     ],
@@ -217,10 +229,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: scheme.outlineVariant.withOpacity(0.3)),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
-            color: scheme.shadow.withOpacity(0.04),
+            color: scheme.shadow.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           )
@@ -333,7 +345,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           decoration: BoxDecoration(
             color: scheme.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: scheme.outlineVariant.withOpacity(0.3)),
+            border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.3)),
           ),
           child: Column(
             children: items.asMap().entries.map((entry) {
@@ -357,7 +369,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                color: CategoryHelper.colorFor(tx.category).withOpacity(0.15),
+                                color: CategoryHelper.colorFor(tx.category).withValues(alpha: 0.15),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -394,7 +406,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     Divider(
                       height: 1,
                       indent: 64,
-                      color: scheme.outlineVariant.withOpacity(0.3),
+                      color: scheme.outlineVariant.withValues(alpha: 0.3),
                     ),
                 ],
               );

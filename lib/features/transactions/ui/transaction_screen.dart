@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'reports_screen.dart';
+import '../data/transactions_repository.dart';
+import '../models/transaction.dart';
+import '../../shared/widgets/category_helper.dart';
 
 class TransactionScreen extends StatefulWidget {
   const TransactionScreen({super.key});
@@ -75,8 +78,98 @@ class _TransactionScreenState extends State<TransactionScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadTransactions();
+  }
+
+  Future<void> _loadTransactions() async {
+    await TransactionsRepository.instance.loadTransactions();
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  List<Map<String, dynamic>> _groupTransactions(
+    List<MoneyTransaction> transactions,
+  ) {
+    final groups = <String, List<MoneyTransaction>>{};
+    for (final transaction in transactions) {
+      final key = DateTime(
+        transaction.date.year,
+        transaction.date.month,
+        transaction.date.day,
+      ).toIso8601String();
+      groups.putIfAbsent(key, () => <MoneyTransaction>[]).add(transaction);
+    }
+
+    final sortedKeys = groups.keys.toList()..sort((a, b) => b.compareTo(a));
+    final result = <Map<String, dynamic>>[];
+
+    for (final key in sortedKeys) {
+      final txList = groups[key]!;
+      final date = DateTime.parse(key);
+      final net = txList.fold<double>(0, (sum, tx) {
+        return sum + (tx.isIncome ? tx.amount : -tx.amount);
+      });
+
+      result.add({
+        'dateStr': _formatDateGroup(date),
+        'totalAmount': _formatGroupAmount(net),
+        'isIncome': net >= 0,
+        'transactions': txList
+            .map(
+              (tx) => {
+                'icon': CategoryHelper.iconFor(tx.category),
+                'categoryColor': CategoryHelper.colorFor(tx.category),
+                'title': tx.title,
+                'note': tx.category,
+                'amount': tx.amount,
+                'isIncome': tx.isIncome,
+              },
+            )
+            .toList(growable: false),
+      });
+    }
+
+    return result;
+  }
+
+  String _formatDateGroup(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final current = DateTime(date.year, date.month, date.day);
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+
+    if (current == today) {
+      return 'Hôm nay, $day/$month/${date.year}';
+    }
+    if (current == yesterday) {
+      return 'Hôm qua, $day/$month/${date.year}';
+    }
+    return '$day/$month/${date.year}';
+  }
+
+  String _formatGroupAmount(double value) {
+    final absValue = value.abs().toStringAsFixed(0);
+    final buffer = StringBuffer();
+    for (int i = 0; i < absValue.length; i++) {
+      if (i > 0 && (absValue.length - i) % 3 == 0) {
+        buffer.write(',');
+      }
+      buffer.write(absValue[i]);
+    }
+    return '${value >= 0 ? '+' : '-'}${buffer.toString()} ₫';
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final remoteTransactions = TransactionsRepository.instance.transactions;
+    final groupedData = remoteTransactions.isEmpty
+        ? _groupedTransactions
+        : _groupTransactions(remoteTransactions);
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,
@@ -181,7 +274,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, groupIndex) {
-                  final group = _groupedTransactions[groupIndex];
+                  final group = groupedData[groupIndex];
                   final transactions = group['transactions'] as List<Map<String, dynamic>>;
 
                   return Column(
@@ -203,7 +296,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                      ],
                   );
                 },
-                childCount: _groupedTransactions.length,
+                childCount: groupedData.length,
               ),
             ),
           ),

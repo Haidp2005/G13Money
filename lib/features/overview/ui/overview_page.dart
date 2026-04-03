@@ -1,8 +1,13 @@
-import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 
+import '../../../core/services/auth_service.dart';
+import '../../accounts/data/accounts_repository.dart';
+import '../../accounts/models/account.dart';
 import '../../shared/widgets/bottom_nav.dart';
 import '../../shared/widgets/category_helper.dart';
+import '../../transactions/data/transactions_repository.dart';
+import '../../transactions/models/transaction.dart';
 
 class OverviewPage extends StatefulWidget {
   const OverviewPage({super.key, this.showBottomNav = true});
@@ -15,59 +20,158 @@ class OverviewPage extends StatefulWidget {
 
 class _OverviewPageState extends State<OverviewPage> {
   int _selectedPeriod = 1; // 0 = Tuần, 1 = Tháng
+  bool _isLoading = true;
+  String? _loadError;
 
-  // ── Data ──
-  static const List<_WalletItem> _wallets = [
-    _WalletItem(
-      name: 'Chính',
-      balance: '500,000 đ',
-      icon: Icons.account_balance_wallet_rounded,
-      color: Color(0xFF6C63FF),
-    ),
-    _WalletItem(
-      name: 'Tiền mặt',
-      balance: '545,000 đ',
-      icon: Icons.payments_rounded,
-      color: Color(0xFFF09928),
-    ),
-  ];
+  final List<Account> _wallets = [];
+  final List<MoneyTransaction> _transactions = [];
 
-  static final List<_TransactionItem> _recentTransactions = [
-    _TransactionItem(
-      title: 'Lương',
-      date: '31 tháng 3 2026',
-      amount: '+500,000',
-      income: true,
-      icon: CategoryHelper.iconFor('Lương'),
-      categoryColor: CategoryHelper.colorFor('Lương'),
-    ),
-    _TransactionItem(
-      title: 'Ăn uống',
-      date: '29 tháng 3 2026',
-      amount: '-5,000',
-      income: false,
-      icon: CategoryHelper.iconFor('Ăn uống'),
-      categoryColor: CategoryHelper.colorFor('Ăn uống'),
-    ),
-    _TransactionItem(
-      title: 'Thu nhập khác',
-      date: '29 tháng 3 2026',
-      amount: '+500,000',
-      income: true,
-      icon: CategoryHelper.iconFor('Thu nhập khác'),
-      categoryColor: CategoryHelper.colorFor('Thu nhập khác'),
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadOverviewData();
+  }
 
-  // Monthly chart data (last 6 months)
-  static const List<_ChartData> _monthlyData = [
-    _ChartData(label: 'T10', income: 8.5, expense: 5.2),
-    _ChartData(label: 'T11', income: 7.0, expense: 6.8),
-    _ChartData(label: 'T12', income: 9.2, expense: 4.5),
-    _ChartData(label: 'T1', income: 6.5, expense: 7.0),
-    _ChartData(label: 'T2', income: 8.0, expense: 3.2),
-    _ChartData(label: 'T3', income: 10.0, expense: 0.05),
-  ];
+  Future<void> _loadOverviewData() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
+    try {
+      await Future.wait([
+        AccountsRepository.instance.loadAccounts(forceRefresh: true),
+        TransactionsRepository.instance.loadTransactions(),
+      ]);
+
+      if (!mounted) return;
+
+      setState(() {
+        _wallets
+          ..clear()
+          ..addAll(AccountsRepository.instance.accounts);
+        _transactions
+          ..clear()
+          ..addAll(TransactionsRepository.instance.transactions);
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  double get _totalBalance =>
+      _wallets.fold<double>(0, (sum, item) => sum + item.balance);
+
+  double get _totalIncome => _transactions
+      .where((item) => item.isIncome)
+      .fold<double>(0, (sum, item) => sum + item.amount);
+
+  double get _totalExpense => _transactions
+      .where((item) => !item.isIncome)
+      .fold<double>(0, (sum, item) => sum + item.amount);
+
+  List<_ChartData> _chartData() {
+    return _selectedPeriod == 0
+        ? _buildWeeklyChartData(_transactions)
+        : _buildMonthlyChartData(_transactions);
+  }
+
+  List<_ChartData> _buildMonthlyChartData(List<MoneyTransaction> transactions) {
+    final now = DateTime.now();
+    final monthStarts = List<DateTime>.generate(
+      6,
+      (index) => DateTime(now.year, now.month - (5 - index), 1),
+    );
+
+    return monthStarts.map((start) {
+      final end = DateTime(start.year, start.month + 1, 1);
+      final income = transactions
+          .where((tx) =>
+              !tx.date.isBefore(start) && tx.date.isBefore(end) && tx.isIncome)
+          .fold<double>(0, (sum, tx) => sum + tx.amount);
+      final expense = transactions
+          .where((tx) =>
+              !tx.date.isBefore(start) && tx.date.isBefore(end) && !tx.isIncome)
+          .fold<double>(0, (sum, tx) => sum + tx.amount);
+      return _ChartData(
+        label: 'T${start.month}',
+        income: income / 1000000,
+        expense: expense / 1000000,
+      );
+    }).toList(growable: false);
+  }
+
+  List<_ChartData> _buildWeeklyChartData(List<MoneyTransaction> transactions) {
+    final today = DateTime.now();
+    final days = List<DateTime>.generate(
+      7,
+      (index) {
+        final date = today.subtract(Duration(days: 6 - index));
+        return DateTime(date.year, date.month, date.day);
+      },
+    );
+
+    return days.map((day) {
+      final nextDay = day.add(const Duration(days: 1));
+      final income = transactions
+          .where((tx) =>
+              !tx.date.isBefore(day) && tx.date.isBefore(nextDay) && tx.isIncome)
+          .fold<double>(0, (sum, tx) => sum + tx.amount);
+      final expense = transactions
+          .where((tx) =>
+              !tx.date.isBefore(day) && tx.date.isBefore(nextDay) && !tx.isIncome)
+          .fold<double>(0, (sum, tx) => sum + tx.amount);
+      return _ChartData(
+        label: '${day.day}/${day.month}',
+        income: income / 1000000,
+        expense: expense / 1000000,
+      );
+    }).toList(growable: false);
+  }
+
+  String _formatCurrency(double value) {
+    final raw = value.abs().toStringAsFixed(0);
+    final buffer = StringBuffer();
+    for (var i = 0; i < raw.length; i++) {
+      if (i > 0 && (raw.length - i) % 3 == 0) {
+        buffer.write(',');
+      }
+      buffer.write(raw[i]);
+    }
+    final sign = value < 0 ? '-' : '';
+    return '$sign${buffer.toString()} đ';
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')} tháng ${date.month} ${date.year}';
+  }
+
+  IconData _walletIcon(String type) {
+    switch (type) {
+      case 'bank':
+        return Icons.account_balance_rounded;
+      case 'ewallet':
+        return Icons.account_balance_wallet_rounded;
+      default:
+        return Icons.payments_rounded;
+    }
+  }
+
+  Color _walletColor(String type) {
+    switch (type) {
+      case 'bank':
+        return const Color(0xFF3A86FF);
+      case 'ewallet':
+        return const Color(0xFF6C63FF);
+      default:
+        return const Color(0xFFF09928);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,24 +180,33 @@ class _OverviewPageState extends State<OverviewPage> {
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(scheme),
-              const SizedBox(height: 24),
-              _buildBalanceCard(scheme),
-              const SizedBox(height: 24),
-              _buildReportSection(scheme),
-              const SizedBox(height: 24),
-              _buildWalletSection(scheme),
-              const SizedBox(height: 24),
-              _buildRecentTransactionsSection(scheme),
-            ],
-          ),
-        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _loadError != null
+                ? _buildErrorState(scheme)
+                : RefreshIndicator(
+                    onRefresh: _loadOverviewData,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(scheme),
+                          const SizedBox(height: 24),
+                          _buildBalanceCard(scheme),
+                          const SizedBox(height: 24),
+                          _buildReportSection(scheme),
+                          const SizedBox(height: 24),
+                          _buildWalletSection(scheme),
+                          const SizedBox(height: 24),
+                          _buildRecentTransactionsSection(scheme),
+                        ],
+                      ),
+                    ),
+                  ),
       ),
       bottomNavigationBar: widget.showBottomNav
           ? MoneyBottomNav(currentIndex: 0, onItemTap: (_) {}, onAddTap: () {})
@@ -101,8 +214,43 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // ── Header ──
+  Widget _buildErrorState(ColorScheme scheme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 42),
+            const SizedBox(height: 10),
+            Text(
+              'Không tải được dữ liệu overview',
+              style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _loadError ?? '',
+              style: TextStyle(color: scheme.outline),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _loadOverviewData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Thử lại'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader(ColorScheme scheme) {
+    final fullName = AuthService.currentUser?.fullName.trim();
+    final displayName = (fullName == null || fullName.isEmpty) ? 'G13 Money' : fullName;
+    final avatarText = (displayName.isNotEmpty ? displayName[0] : 'G').toUpperCase();
+
     return Row(
       children: [
         Container(
@@ -116,10 +264,10 @@ class _OverviewPageState extends State<OverviewPage> {
             ),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: const Center(
+          child: Center(
             child: Text(
-              'G',
-              style: TextStyle(
+              avatarText,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -142,7 +290,7 @@ class _OverviewPageState extends State<OverviewPage> {
               ),
               const SizedBox(height: 2),
               Text(
-                'G13 Money',
+                displayName,
                 style: TextStyle(
                   color: scheme.onSurface,
                   fontSize: 18,
@@ -175,7 +323,6 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // ── Balance Card ──
   Widget _buildBalanceCard(ColorScheme scheme) {
     return Container(
       width: double.infinity,
@@ -208,25 +355,12 @@ class _OverviewPageState extends State<OverviewPage> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Icons.visibility_rounded,
-                  color: Colors.white.withValues(alpha: 0.85),
-                  size: 14,
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 10),
-          const Text(
-            '1,045,000 đ',
-            style: TextStyle(
+          Text(
+            _formatCurrency(_totalBalance),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 32,
               fontWeight: FontWeight.w800,
@@ -239,15 +373,13 @@ class _OverviewPageState extends State<OverviewPage> {
               _balanceSummaryChip(
                 icon: Icons.arrow_upward_rounded,
                 label: 'Thu nhập',
-                value: '1,000,000',
-                color: const Color(0xFF2DCC5A),
+                value: _formatCurrency(_totalIncome),
               ),
               const SizedBox(width: 12),
               _balanceSummaryChip(
                 icon: Icons.arrow_downward_rounded,
                 label: 'Chi tiêu',
-                value: '5,000',
-                color: const Color(0xFFFF6B6B),
+                value: _formatCurrency(_totalExpense),
               ),
             ],
           ),
@@ -260,7 +392,6 @@ class _OverviewPageState extends State<OverviewPage> {
     required IconData icon,
     required String label,
     required String value,
-    required Color color,
   }) {
     return Expanded(
       child: Container(
@@ -268,10 +399,6 @@ class _OverviewPageState extends State<OverviewPage> {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.15),
-            width: 1,
-          ),
         ),
         child: Row(
           children: [
@@ -313,16 +440,19 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // ── Report Section with Bar Chart ──
   Widget _buildReportSection(ColorScheme scheme) {
+    final chartData = _chartData();
+    final maxSeries = chartData.fold<double>(1, (maxSoFar, item) {
+      final localMax = item.income > item.expense ? item.income : item.expense;
+      return localMax > maxSoFar ? localMax : maxSoFar;
+    });
+    final chartMaxY = (maxSeries * 1.2).clamp(1, 999999).toDouble();
+    final interval = chartMaxY <= 4 ? 1.0 : (chartMaxY / 3);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(
-          title: 'Báo cáo tháng này',
-          action: 'Xem báo cáo',
-          scheme: scheme,
-        ),
+        _sectionHeader(title: 'Báo cáo', action: 'Xem báo cáo', scheme: scheme),
         const SizedBox(height: 14),
         _sectionCard(
           scheme: scheme,
@@ -330,162 +460,82 @@ class _OverviewPageState extends State<OverviewPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildPeriodSwitch(scheme),
-              const SizedBox(height: 20),
-              // Summary row
-              Row(
-                children: [
-                  _reportLegend(
-                    color: scheme.primary,
-                    label: 'Thu nhập',
-                    scheme: scheme,
-                  ),
-                  const SizedBox(width: 20),
-                  _reportLegend(
-                    color: const Color(0xFFFF6B6B),
-                    label: 'Chi tiêu',
-                    scheme: scheme,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              // Bar chart
+              const SizedBox(height: 14),
               SizedBox(
                 height: 200,
                 child: BarChart(
                   BarChartData(
                     alignment: BarChartAlignment.spaceAround,
-                    maxY: 12,
-                    barTouchData: BarTouchData(
-                      enabled: true,
-                      touchTooltipData: BarTouchTooltipData(
-                        tooltipRoundedRadius: 12,
-                        getTooltipColor: (_) => scheme.surfaceContainerHighest,
-                        tooltipPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                          final data = _monthlyData[group.x];
-                          final isIncome = rodIndex == 0;
-                          return BarTooltipItem(
-                            '${isIncome ? "Thu" : "Chi"}: ${isIncome ? data.income : data.expense}tr',
-                            TextStyle(
-                              color: isIncome
-                                  ? scheme.primary
-                                  : const Color(0xFFFF6B6B),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          );
-                        },
+                    maxY: chartMaxY,
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: interval,
+                      getDrawingHorizontalLine: (value) => FlLine(
+                        color: scheme.outlineVariant.withValues(alpha: 0.3),
+                        strokeWidth: 1,
+                        dashArray: [4, 4],
                       ),
                     ),
+                    borderData: FlBorderData(show: false),
                     titlesData: FlTitlesData(
-                      show: true,
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                       bottomTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
-                          getTitlesWidget: (value, meta) {
-                            final index = value.toInt();
-                            if (index >= 0 && index < _monthlyData.length) {
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  _monthlyData[index].label,
-                                  style: TextStyle(
-                                    color: scheme.outline,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          },
                           reservedSize: 28,
+                          getTitlesWidget: (value, meta) {
+                            final i = value.toInt();
+                            if (i < 0 || i >= chartData.length) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                chartData[i].label,
+                                style: TextStyle(color: scheme.outline, fontSize: 11),
+                              ),
+                            );
+                          },
                         ),
                       ),
                       leftTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
                           reservedSize: 32,
-                          interval: 4,
-                          getTitlesWidget: (value, meta) {
-                            return Text(
-                              '${value.toInt()}tr',
-                              style: TextStyle(
-                                color: scheme.outline,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            );
-                          },
+                          interval: interval,
+                          getTitlesWidget: (value, meta) => Text(
+                            '${value.toInt()}tr',
+                            style: TextStyle(color: scheme.outline, fontSize: 10),
+                          ),
                         ),
                       ),
-                      topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
                     ),
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      horizontalInterval: 4,
-                      getDrawingHorizontalLine: (value) {
-                        return FlLine(
-                          color: scheme.outlineVariant.withValues(alpha: 0.3),
-                          strokeWidth: 1,
-                          dashArray: [4, 4],
-                        );
-                      },
-                    ),
-                    borderData: FlBorderData(show: false),
-                    barGroups: _monthlyData.asMap().entries.map((entry) {
+                    barGroups: chartData.asMap().entries.map((entry) {
                       return BarChartGroupData(
                         x: entry.key,
+                        barsSpace: 4,
                         barRods: [
                           BarChartRodData(
                             toY: entry.value.income,
                             color: scheme.primary,
-                            width: 14,
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(6),
-                              topRight: Radius.circular(6),
-                            ),
-                            backDrawRodData: BackgroundBarChartRodData(
-                              show: true,
-                              toY: 12,
-                              color: scheme.primary.withValues(alpha: 0.08),
-                            ),
+                            width: 12,
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                           ),
                           BarChartRodData(
                             toY: entry.value.expense,
                             color: const Color(0xFFFF6B6B),
-                            width: 14,
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(6),
-                              topRight: Radius.circular(6),
-                            ),
-                            backDrawRodData: BackgroundBarChartRodData(
-                              show: true,
-                              toY: 12,
-                              color: const Color(
-                                0xFFFF6B6B,
-                              ).withValues(alpha: 0.08),
-                            ),
+                            width: 12,
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                           ),
                         ],
-                        barsSpace: 4,
                       );
-                    }).toList(),
+                    }).toList(growable: false),
                   ),
-                  duration: const Duration(milliseconds: 500),
                 ),
               ),
-              const SizedBox(height: 16),
-              // Summary totals
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -497,52 +547,24 @@ class _OverviewPageState extends State<OverviewPage> {
                     Expanded(
                       child: Column(
                         children: [
-                          Text(
-                            'Tổng thu',
-                            style: TextStyle(
-                              color: scheme.outline,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          Text('Tổng thu', style: TextStyle(color: scheme.outline, fontSize: 12)),
                           const SizedBox(height: 4),
                           Text(
-                            '1,000,000 đ',
-                            style: TextStyle(
-                              color: scheme.primary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            _formatCurrency(_totalIncome),
+                            style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(
-                      height: 30,
-                      child: VerticalDivider(
-                        color: scheme.outlineVariant,
-                        width: 1,
-                      ),
-                    ),
+                    SizedBox(height: 30, child: VerticalDivider(color: scheme.outlineVariant)),
                     Expanded(
                       child: Column(
                         children: [
-                          Text(
-                            'Tổng chi',
-                            style: TextStyle(
-                              color: scheme.outline,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          Text('Tổng chi', style: TextStyle(color: scheme.outline, fontSize: 12)),
                           const SizedBox(height: 4),
-                          const Text(
-                            '5,000 đ',
-                            style: TextStyle(
-                              color: Color(0xFFFF6B6B),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
+                          Text(
+                            _formatCurrency(_totalExpense),
+                            style: const TextStyle(color: Color(0xFFFF6B6B), fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
@@ -557,104 +579,70 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  Widget _reportLegend({
-    required Color color,
-    required String label,
-    required ColorScheme scheme,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            color: scheme.onSurfaceVariant,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Wallet Section ──
   Widget _buildWalletSection(ColorScheme scheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(
-          title: 'Ví của tôi',
-          action: 'Xem tất cả',
-          scheme: scheme,
-        ),
+        _sectionHeader(title: 'Ví của tôi', action: 'Xem tất cả', scheme: scheme),
         const SizedBox(height: 14),
         _sectionCard(
           scheme: scheme,
-          child: Column(
-            children: [
-              ..._wallets.asMap().entries.map((entry) {
-                final isLast = entry.key == _wallets.length - 1;
-                return Column(
-                  children: [
-                    _walletTile(entry.value, scheme),
-                    if (!isLast)
-                      Divider(
-                        color: scheme.outlineVariant.withValues(alpha: 0.3),
-                        height: 1,
-                      ),
-                  ],
-                );
-              }),
-            ],
-          ),
+          child: _wallets.isEmpty
+              ? Text('Chưa có ví', style: TextStyle(color: scheme.outline))
+              : Column(
+                  children: _wallets.asMap().entries.map((entry) {
+                    final isLast = entry.key == _wallets.length - 1;
+                    return Column(
+                      children: [
+                        _walletTile(entry.value, scheme),
+                        if (!isLast)
+                          Divider(
+                            color: scheme.outlineVariant.withValues(alpha: 0.3),
+                            height: 1,
+                          ),
+                      ],
+                    );
+                  }).toList(growable: false),
+                ),
         ),
       ],
     );
   }
 
-  // ── Recent Transactions Section ──
   Widget _buildRecentTransactionsSection(ColorScheme scheme) {
+    final recent = _transactions.take(6).toList(growable: false);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(
-          title: 'Giao dịch gần đây',
-          action: 'Xem tất cả',
-          scheme: scheme,
-        ),
+        _sectionHeader(title: 'Giao dịch gần đây', action: 'Xem tất cả', scheme: scheme),
         const SizedBox(height: 14),
         _sectionCard(
           scheme: scheme,
-          child: Column(
-            children: _recentTransactions.asMap().entries.map((entry) {
-              final isLast = entry.key == _recentTransactions.length - 1;
-              return Column(
-                children: [
-                  _transactionTile(entry.value, scheme),
-                  if (!isLast)
-                    Divider(
-                      color: scheme.outlineVariant.withValues(alpha: 0.3),
-                      height: 1,
-                    ),
-                ],
-              );
-            }).toList(),
-          ),
+          child: recent.isEmpty
+              ? Text('Chưa có giao dịch', style: TextStyle(color: scheme.outline))
+              : Column(
+                  children: recent.asMap().entries.map((entry) {
+                    final isLast = entry.key == recent.length - 1;
+                    return Column(
+                      children: [
+                        _transactionTile(entry.value, scheme),
+                        if (!isLast)
+                          Divider(
+                            color: scheme.outlineVariant.withValues(alpha: 0.3),
+                            height: 1,
+                          ),
+                      ],
+                    );
+                  }).toList(growable: false),
+                ),
         ),
       ],
     );
   }
 
-  // ── Wallet Tile ──
-  Widget _walletTile(_WalletItem item, ColorScheme scheme) {
+  Widget _walletTile(Account item, ColorScheme scheme) {
+    final color = _walletColor(item.type);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
@@ -663,50 +651,30 @@ class _OverviewPageState extends State<OverviewPage> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: item.color.withValues(alpha: 0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: item.color.withValues(alpha: 0.15),
-                width: 1,
-              ),
             ),
-            child: Icon(item.icon, color: item.color, size: 24),
+            child: Icon(_walletIcon(item.type), color: color, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               item.name,
-              style: TextStyle(
-                color: scheme.onSurface,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: scheme.onSurface, fontSize: 15, fontWeight: FontWeight.w600),
             ),
           ),
           Text(
-            item.balance,
-            style: TextStyle(
-              color: scheme.onSurface,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: scheme.outline,
-            size: 20,
+            _formatCurrency(item.balance),
+            style: TextStyle(color: scheme.onSurface, fontSize: 15, fontWeight: FontWeight.w700),
           ),
         ],
       ),
     );
   }
 
-  // ── Transaction Tile ──
-  Widget _transactionTile(_TransactionItem item, ColorScheme scheme) {
-    final Color amountColor = item.income
-        ? const Color(0xFF2DCC5A)
-        : const Color(0xFFFF6B6B);
+  Widget _transactionTile(MoneyTransaction item, ColorScheme scheme) {
+    final categoryColor = CategoryHelper.colorFor(item.category);
+    final amountColor = item.isIncome ? const Color(0xFF2DCC5A) : const Color(0xFFFF6B6B);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -716,14 +684,10 @@ class _OverviewPageState extends State<OverviewPage> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: item.categoryColor.withValues(alpha: 0.12),
+              color: categoryColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: item.categoryColor.withValues(alpha: 0.15),
-                width: 1,
-              ),
             ),
-            child: Icon(item.icon, color: item.categoryColor, size: 22),
+            child: Icon(CategoryHelper.iconFor(item.category), color: categoryColor, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -732,37 +696,25 @@ class _OverviewPageState extends State<OverviewPage> {
               children: [
                 Text(
                   item.title,
-                  style: TextStyle(
-                    color: scheme.onSurface,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(color: scheme.onSurface, fontSize: 15, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  item.date,
-                  style: TextStyle(
-                    color: scheme.outline,
-                    fontSize: 12,
-                  ),
+                  _formatDate(item.date),
+                  style: TextStyle(color: scheme.outline, fontSize: 12),
                 ),
               ],
             ),
           ),
           Text(
-            item.amount,
-            style: TextStyle(
-              color: amountColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
+            '${item.isIncome ? '+' : '-'}${_formatCurrency(item.amount).replaceAll(' đ', '')}',
+            style: TextStyle(color: amountColor, fontSize: 15, fontWeight: FontWeight.w700),
           ),
         ],
       ),
     );
   }
 
-  // ── Period Switch ──
   Widget _buildPeriodSwitch(ColorScheme scheme) {
     return Container(
       height: 44,
@@ -791,15 +743,6 @@ class _OverviewPageState extends State<OverviewPage> {
           decoration: BoxDecoration(
             color: isSelected ? scheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: scheme.primary.withValues(alpha: 0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
           ),
           alignment: Alignment.center,
           child: Text(
@@ -815,7 +758,6 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // ── Shared components ──
   Widget _sectionCard({required Widget child, required ColorScheme scheme}) {
     return Container(
       width: double.infinity,
@@ -827,13 +769,6 @@ class _OverviewPageState extends State<OverviewPage> {
           color: scheme.outlineVariant.withValues(alpha: 0.25),
           width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: child,
     );
@@ -855,64 +790,23 @@ class _OverviewPageState extends State<OverviewPage> {
           ),
         ),
         const Spacer(),
-        GestureDetector(
-          onTap: () {},
-          child: Row(
-            children: [
-              Text(
-                action,
-                style: TextStyle(
-                  color: scheme.primary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 2),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
+        Row(
+          children: [
+            Text(
+              action,
+              style: TextStyle(
                 color: scheme.primary,
-                size: 12,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 2),
+            Icon(Icons.arrow_forward_ios_rounded, color: scheme.primary, size: 12),
+          ],
         ),
       ],
     );
   }
-}
-
-// ── Data Models ──
-
-class _WalletItem {
-  const _WalletItem({
-    required this.name,
-    required this.balance,
-    required this.icon,
-    required this.color,
-  });
-
-  final String name;
-  final String balance;
-  final IconData icon;
-  final Color color;
-}
-
-class _TransactionItem {
-  const _TransactionItem({
-    required this.title,
-    required this.date,
-    required this.amount,
-    required this.income,
-    required this.icon,
-    required this.categoryColor,
-  });
-
-  final String title;
-  final String date;
-  final String amount;
-  final bool income;
-  final IconData icon;
-  final Color categoryColor;
 }
 
 class _ChartData {

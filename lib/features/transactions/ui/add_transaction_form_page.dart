@@ -3,10 +3,15 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../accounts/data/accounts_repository.dart';
+import '../../accounts/data/categories_repository.dart';
+import '../../accounts/models/account.dart';
+import '../../accounts/models/category_item.dart';
 import '../../../core/services/language_service.dart';
+import '../data/transactions_repository.dart';
 import '../../shared/widgets/category_helper.dart';
 
-enum _TransactionType { expense, income, debt }
+enum _TransactionType { expense, income }
 
 class AddTransactionFormPage extends StatefulWidget {
   const AddTransactionFormPage({super.key});
@@ -21,50 +26,55 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
   final ImagePicker _imagePicker = ImagePicker();
 
   _TransactionType _type = _TransactionType.expense;
-  final String _walletName = 'Tiền mặt';
-  String _selectedCategory = 'Ăn uống';
+  String _selectedWalletName = '';
+  String _selectedCategory = '';
   DateTime _selectedDate = DateTime.now();
   final List<Uint8List> _attachments = <Uint8List>[];
-
-  static const List<String> _expenseCategories = <String>[
-    'Ăn uống',
-    'Di chuyển',
-    'Mua sắm',
-    'Nhà ở',
-    'Giải trí',
-    'Sức khỏe',
-    'Giáo dục',
-    'Hóa đơn',
-  ];
-
-  static const List<String> _incomeCategories = <String>[
-    'Lương',
-    'Thưởng',
-    'Thu nhập khác',
-  ];
-
-  static const List<String> _debtCategories = <String>[
-    'Cho vay',
-    'Đi vay',
-    'Trả nợ',
-    'Thu nợ',
-  ];
+  final List<Account> _wallets = [];
+  final List<CategoryItem> _categories = [];
+  bool _isSubmitting = false;
+  bool _isMetaLoading = true;
 
   List<String> get _currentCategories {
-    switch (_type) {
-      case _TransactionType.expense:
-        return _expenseCategories;
-      case _TransactionType.income:
-        return _incomeCategories;
-      case _TransactionType.debt:
-        return _debtCategories;
-    }
+    final targetType = _type == _TransactionType.income ? 'income' : 'expense';
+    return _categories
+        .where((item) => item.type.trim().toLowerCase() == targetType)
+        .map((item) => item.name)
+        .toList(growable: false);
   }
 
   @override
   void initState() {
     super.initState();
     _amountController.text = '0';
+    _loadMetaData();
+  }
+
+  Future<void> _loadMetaData() async {
+    await Future.wait([
+      AccountsRepository.instance.loadAccounts(forceRefresh: true),
+      CategoriesRepository.instance.loadCategories(forceRefresh: true),
+    ]);
+
+    _wallets
+      ..clear()
+      ..addAll(AccountsRepository.instance.accounts);
+    _categories
+      ..clear()
+      ..addAll(CategoriesRepository.instance.categories);
+
+    final currentCategories = _currentCategories;
+    if (currentCategories.isNotEmpty) {
+      _selectedCategory = currentCategories.first;
+    }
+    if (_wallets.isNotEmpty) {
+      _selectedWalletName = _wallets.first.name;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isMetaLoading = false;
+    });
   }
 
   @override
@@ -96,6 +106,35 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
   }
 
   Future<void> _showCategorySelector() async {
+    try {
+      await CategoriesRepository.instance.loadCategories(forceRefresh: true);
+      _categories
+        ..clear()
+        ..addAll(CategoriesRepository.instance.categories);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (_currentCategories.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LanguageService.tr(
+              vi: 'Không có danh mục phù hợp. Hãy tạo danh mục trong Cài đặt tài khoản.',
+              en: 'No matching category. Please create categories in account settings.',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
     final selected = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
@@ -151,6 +190,72 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
     }
   }
 
+  Future<void> _showWalletSelector() async {
+    try {
+      await AccountsRepository.instance.loadAccounts(forceRefresh: true);
+      _wallets
+        ..clear()
+        ..addAll(AccountsRepository.instance.accounts);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (_wallets.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LanguageService.tr(
+              vi: 'Không có ví/tài khoản. Hãy tạo trong Cài đặt tài khoản.',
+              en: 'No wallet/account found. Please create one in account settings.',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: _wallets.length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final wallet = _wallets[index];
+                return ListTile(
+                  leading: const Icon(Icons.account_balance_wallet_outlined),
+                  title: Text(wallet.name),
+                  trailing: wallet.name == _selectedWalletName
+                      ? const Icon(Icons.check_circle, color: Color(0xFF22B45E))
+                      : null,
+                  onTap: () => Navigator.of(context).pop(wallet.name),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected != null) {
+      setState(() {
+        _selectedWalletName = selected;
+      });
+    }
+  }
+
   Future<void> _showAttachmentActions() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -197,7 +302,8 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
   void _changeType(_TransactionType type) {
     setState(() {
       _type = type;
-      _selectedCategory = _currentCategories.first;
+      final categories = _currentCategories;
+      _selectedCategory = categories.isEmpty ? '' : categories.first;
     });
   }
 
@@ -217,7 +323,36 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
     return '$weekday, $day/$month/$year';
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_selectedWalletName.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LanguageService.tr(
+              vi: 'Vui lòng chọn ví/tài khoản',
+              en: 'Please select a wallet/account',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (_selectedCategory.trim().isEmpty ||
+        !_currentCategories.contains(_selectedCategory)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LanguageService.tr(
+              vi: 'Danh mục không hợp lệ cho loại giao dịch đã chọn',
+              en: 'Invalid category for selected transaction type',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
     final amount = double.tryParse(_amountController.text.trim());
     if (amount == null || amount < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -233,12 +368,43 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
       return;
     }
 
+    final note = _noteController.text.trim();
+    final title = note.isEmpty ? _selectedCategory : note;
+    final isIncome = _type == _TransactionType.income;
+    final normalizedAmount = amount.abs();
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      await TransactionsRepository.instance.addTransaction(
+        title: title,
+        category: _selectedCategory,
+        walletName: _selectedWalletName,
+        amount: normalizedAmount,
+        date: _selectedDate,
+        isIncome: isIncome,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           LanguageService.tr(
-            vi: 'Đã lưu giao dịch mẫu',
-            en: 'Sample transaction saved',
+            vi: 'Đã lưu giao dịch',
+            en: 'Transaction saved',
           ),
         ),
       ),
@@ -302,21 +468,27 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                               selected: _type == _TransactionType.income,
                               onTap: () => _changeType(_TransactionType.income),
                             ),
-                            _typeChip(
-                              label: 'Vay/Nợ',
-                              selected: _type == _TransactionType.debt,
-                              onTap: () => _changeType(_TransactionType.debt),
-                            ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
                       // ── Wallet
-                      _plainRow(
-                        leading: const Icon(Icons.account_balance_wallet_outlined, size: 22, color: Color(0xFF8C919E)),
-                        child: Text(
-                          _walletName,
-                          style: const TextStyle(fontSize: 16, color: Color(0xFF181B23), fontWeight: FontWeight.w500),
+                      InkWell(
+                        onTap: _showWalletSelector,
+                        borderRadius: BorderRadius.circular(12),
+                        child: _plainRow(
+                          leading: const Icon(Icons.account_balance_wallet_outlined, size: 22, color: Color(0xFF8C919E)),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _selectedWalletName.isEmpty ? '-' : _selectedWalletName,
+                                  style: const TextStyle(fontSize: 16, color: Color(0xFF181B23), fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded, size: 22, color: muted),
+                            ],
+                          ),
                         ),
                       ),
                       const Divider(height: 20, thickness: 1, color: Color(0xFFEEF0F5)),
@@ -361,7 +533,7 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  _selectedCategory,
+                                  _selectedCategory.isEmpty ? '-' : _selectedCategory,
                                   style: const TextStyle(fontSize: 16, color: Color(0xFF181B23), fontWeight: FontWeight.w500),
                                 ),
                               ),
@@ -498,7 +670,7 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _submit,
+                  onPressed: (_isSubmitting || _isMetaLoading) ? null : _submit,
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF22B45E),
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -506,10 +678,19 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  child: Text(
-                    LanguageService.tr(vi: 'Lưu', en: 'Save'),
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          LanguageService.tr(vi: 'Lưu', en: 'Save'),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                        ),
                 ),
               ),
             ),

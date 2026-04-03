@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/language_service.dart';
+import '../../accounts/data/accounts_repository.dart';
+import '../../accounts/data/categories_repository.dart';
 import '../../shared/widgets/category_helper.dart';
 import '../models/budget.dart';
 
@@ -17,27 +20,12 @@ class _BudgetFormState extends State<BudgetForm> {
   late final TextEditingController _titleController;
   late final TextEditingController _limitController;
 
-  String _selectedCategory = 'Ăn uống';
-  final List<String> _categories = [
-    'Ăn uống',
-    'Di chuyển',
-    'Mua sắm',
-    'Nhà ở',
-    'Giải trí',
-    'Sức khỏe',
-    'Giáo dục',
-    'Hóa đơn',
-  ];
+  String _selectedCategory = '';
+  final List<String> _categories = [];
 
   String _selectedWallet = 'Tất cả ví';
-  final List<String> _wallets = [
-    'Tất cả ví',
-    'Tiền mặt',
-    'Vietcombank',
-    'Techcombank',
-    'Momo',
-    'ZaloPay',
-  ];
+  final List<String> _wallets = ['Tất cả ví'];
+  bool _isLoadingChoices = true;
 
   late DateTime _startDate;
   late DateTime _endDate;
@@ -50,15 +38,7 @@ class _BudgetFormState extends State<BudgetForm> {
     _limitController = TextEditingController(
       text: budget == null ? '' : budget.limit.toStringAsFixed(0),
     );
-
-    if (budget != null && !_categories.contains(budget.category)) {
-      _categories.add(budget.category);
-    }
-    _selectedCategory = budget?.category ?? _categories.first;
-
-    if (budget != null && !_wallets.contains(budget.walletName)) {
-      _wallets.add(budget.walletName);
-    }
+    _selectedCategory = budget?.category ?? '';
     _selectedWallet = budget?.walletName ?? _wallets.first;
 
     final now = DateTime.now();
@@ -70,6 +50,41 @@ class _BudgetFormState extends State<BudgetForm> {
     if (_endDate.isBefore(_startDate)) {
       _endDate = _startDate;
     }
+
+    _loadChoices();
+  }
+
+  Future<void> _loadChoices() async {
+    await Future.wait([
+      CategoriesRepository.instance.loadCategories(forceRefresh: true),
+      AccountsRepository.instance.loadAccounts(forceRefresh: true),
+    ]);
+
+    final categoryNames = CategoriesRepository.instance
+        .categoriesByTypes(const <String>{'expense'})
+        .map((item) => item.name)
+        .toList(growable: false);
+    final walletNames = AccountsRepository.instance.walletNames();
+
+    _categories
+      ..clear()
+      ..addAll(categoryNames);
+    _wallets
+      ..clear()
+      ..add('Tất cả ví')
+      ..addAll(walletNames);
+
+    if (_selectedCategory.isEmpty || !_categories.contains(_selectedCategory)) {
+      _selectedCategory = _categories.isEmpty ? '' : _categories.first;
+    }
+    if (!_wallets.contains(_selectedWallet)) {
+      _selectedWallet = _wallets.first;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isLoadingChoices = false;
+    });
   }
 
   @override
@@ -139,7 +154,15 @@ class _BudgetFormState extends State<BudgetForm> {
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedCategory,
+                  initialValue: _categories.contains(_selectedCategory)
+                      ? _selectedCategory
+                      : null,
+                  disabledHint: Text(
+                    LanguageService.tr(
+                      vi: 'Không có danh mục chi tiêu',
+                      en: 'No expense categories available',
+                    ),
+                  ),
                   decoration: const InputDecoration(labelText: 'Danh mục'),
                   items: _categories.map((category) {
                     return DropdownMenuItem(
@@ -163,7 +186,9 @@ class _BudgetFormState extends State<BudgetForm> {
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedWallet,
+                  initialValue: _wallets.contains(_selectedWallet)
+                      ? _selectedWallet
+                      : null,
                   decoration: const InputDecoration(
                     labelText: 'Áp dụng cho ví/tài khoản',
                   ),
@@ -213,7 +238,7 @@ class _BudgetFormState extends State<BudgetForm> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: _submit,
+                    onPressed: _isLoadingChoices ? null : _submit,
                     icon: const Icon(Icons.save_outlined),
                     label: Text(
                       isEditing ? 'Cập nhật ngân sách' : 'Tạo ngân sách',
@@ -280,6 +305,20 @@ class _BudgetFormState extends State<BudgetForm> {
   void _submit() {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedCategory.isEmpty || !_categories.contains(_selectedCategory)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LanguageService.tr(
+              vi: 'Vui lòng tạo và chọn danh mục chi tiêu hợp lệ trong Cài đặt tài khoản',
+              en: 'Please create and select a valid expense category in account settings',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
 
     final budget = Budget(
       id:

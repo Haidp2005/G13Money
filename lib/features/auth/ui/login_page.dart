@@ -38,6 +38,13 @@ class _LoginPageState extends State<LoginPage>
     ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
 
     _animCtrl.forward();
+    _restoreSessionIfAvailable();
+  }
+
+  Future<void> _restoreSessionIfAvailable() async {
+    final user = await AuthService.restoreSession();
+    if (!mounted || user == null) return;
+    Navigator.pushReplacementNamed(context, AppRoutes.home);
   }
 
   @override
@@ -546,7 +553,7 @@ class _HintText extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          'admin@g13.com  /  123456',
+          'seed@g13money.com  /  12345678',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.9),
             fontSize: 13,

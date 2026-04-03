@@ -12,10 +12,10 @@ class ExpenseManagerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<AppLanguage>(
       valueListenable: LanguageService.notifier,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         return ValueListenableBuilder<ThemeMode>(
           valueListenable: ThemeService.notifier,
-          builder: (context, themeMode, __) {
+          builder: (context, themeMode, _) {
             return MaterialApp(
               title: 'G13 Money',
               debugShowCheckedModeBanner: false,
@@ -35,7 +35,6 @@ class ExpenseManagerApp extends StatelessWidget {
                   brightness: Brightness.light,
                 ),
                 useMaterial3: true,
-                fontFamily: 'Roboto',
               ),
               darkTheme: ThemeData(
                 colorScheme: ColorScheme.fromSeed(
@@ -45,7 +44,6 @@ class ExpenseManagerApp extends StatelessWidget {
                   brightness: Brightness.dark,
                 ),
                 useMaterial3: true,
-                fontFamily: 'Roboto',
               ),
               initialRoute: AppRoutes.login,
               routes: AppRoutes.map,

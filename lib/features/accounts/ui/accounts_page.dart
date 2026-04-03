@@ -303,11 +303,27 @@ class _MenuCard extends StatelessWidget {
         subtitle: LanguageService.tr(vi: 'Quản lý thông báo', en: 'Manage notifications'),
       ),
       _SettingEntry(
-        icon: Icons.account_balance_wallet_outlined,
+        icon: Icons.savings_outlined,
         title: LanguageService.tr(vi: 'Ngân sách', en: 'Budgets'),
         subtitle: LanguageService.tr(
           vi: 'Hạn mức chi tiêu theo danh mục',
           en: 'Spending limits by category',
+        ),
+      ),
+      _SettingEntry(
+        icon: Icons.account_balance_wallet_outlined,
+        title: LanguageService.tr(vi: 'Ví/Tài khoản', en: 'Wallets/Accounts'),
+        subtitle: LanguageService.tr(
+          vi: 'Quản lý ví tiền, ngân hàng, ví điện tử',
+          en: 'Manage cash, bank and e-wallet accounts',
+        ),
+      ),
+      _SettingEntry(
+        icon: Icons.category_outlined,
+        title: LanguageService.tr(vi: 'Danh mục', en: 'Categories'),
+        subtitle: LanguageService.tr(
+          vi: 'Tạo và chỉnh sửa danh mục giao dịch',
+          en: 'Create and edit transaction categories',
         ),
       ),
       _SettingEntry(
@@ -375,12 +391,16 @@ class _MenuCard extends StatelessWidget {
               subtitle: item.subtitle,
               scheme: scheme,
               onTap: () {
-                if (item.icon == Icons.account_balance_wallet_outlined) {
+                if (item.icon == Icons.savings_outlined) {
                   Navigator.pushReplacementNamed(
                     context,
                     AppRoutes.home,
                     arguments: 3,
                   );
+                } else if (item.icon == Icons.account_balance_wallet_outlined) {
+                  Navigator.pushNamed(context, AppRoutes.manageWallets);
+                } else if (item.icon == Icons.category_outlined) {
+                  Navigator.pushNamed(context, AppRoutes.manageCategories);
                 } else if (item.icon == Icons.notifications_outlined) {
                   Navigator.pushNamed(context, AppRoutes.notifications);
                 } else if (item.icon == Icons.lock_outline) {
@@ -410,7 +430,7 @@ void _showThemeBottomSheet(BuildContext context) {
     builder: (_) => SafeArea(
       child: ValueListenableBuilder<ThemeMode>(
         valueListenable: ThemeService.notifier,
-        builder: (context, selectedMode, __) {
+        builder: (context, selectedMode, _) {
           return Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             child: Column(
@@ -426,23 +446,19 @@ void _showThemeBottomSheet(BuildContext context) {
                   ),
                 ),
                 const SizedBox(height: 8),
-                RadioListTile<ThemeMode>(
-                  value: ThemeMode.light,
-                  groupValue: selectedMode,
-                  title: Text(LanguageService.tr(vi: 'Sáng', en: 'Light')),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    ThemeService.setThemeMode(value);
+                _OptionTile(
+                  title: LanguageService.tr(vi: 'Sáng', en: 'Light'),
+                  selected: selectedMode == ThemeMode.light,
+                  onTap: () {
+                    ThemeService.setThemeMode(ThemeMode.light);
                     Navigator.pop(context);
                   },
                 ),
-                RadioListTile<ThemeMode>(
-                  value: ThemeMode.dark,
-                  groupValue: selectedMode,
-                  title: Text(LanguageService.tr(vi: 'Tối', en: 'Dark')),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    ThemeService.setThemeMode(value);
+                _OptionTile(
+                  title: LanguageService.tr(vi: 'Tối', en: 'Dark'),
+                  selected: selectedMode == ThemeMode.dark,
+                  onTap: () {
+                    ThemeService.setThemeMode(ThemeMode.dark);
                     Navigator.pop(context);
                   },
                 ),
@@ -478,7 +494,7 @@ void _showLanguageBottomSheet(BuildContext context) {
     builder: (_) => SafeArea(
       child: ValueListenableBuilder<AppLanguage>(
         valueListenable: LanguageService.notifier,
-        builder: (context, selectedLanguage, __) {
+        builder: (context, selectedLanguage, _) {
           return Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             child: Column(
@@ -494,23 +510,19 @@ void _showLanguageBottomSheet(BuildContext context) {
                   ),
                 ),
                 const SizedBox(height: 8),
-                RadioListTile<AppLanguage>(
-                  value: AppLanguage.vietnamese,
-                  groupValue: selectedLanguage,
-                  title: const Text('Tiếng Việt'),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    LanguageService.setLanguage(value);
+                _OptionTile(
+                  title: 'Tiếng Việt',
+                  selected: selectedLanguage == AppLanguage.vietnamese,
+                  onTap: () {
+                    LanguageService.setLanguage(AppLanguage.vietnamese);
                     Navigator.pop(context);
                   },
                 ),
-                RadioListTile<AppLanguage>(
-                  value: AppLanguage.english,
-                  groupValue: selectedLanguage,
-                  title: const Text('English'),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    LanguageService.setLanguage(value);
+                _OptionTile(
+                  title: 'English',
+                  selected: selectedLanguage == AppLanguage.english,
+                  onTap: () {
+                    LanguageService.setLanguage(AppLanguage.english);
                     Navigator.pop(context);
                   },
                 ),
@@ -607,11 +619,12 @@ class _LogoutButton extends StatelessWidget {
             child: Text(LanguageService.tr(vi: 'Huỷ', en: 'Cancel')),
           ),
           TextButton(
-            onPressed: () {
-              AuthService.logout();
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              await AuthService.logout();
+              if (!ctx.mounted) return;
               Navigator.pop(ctx);
-              Navigator.pushNamedAndRemoveUntil(
-                context,
+              navigator.pushNamedAndRemoveUntil(
                 AppRoutes.login,
                 (_) => false,
               );
@@ -650,6 +663,31 @@ class _Card extends StatelessWidget {
         ],
       ),
       child: child,
+    );
+  }
+}
+
+class _OptionTile extends StatelessWidget {
+  final String title;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _OptionTile({
+    required this.title,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+      title: Text(title),
+      trailing: selected
+          ? Icon(Icons.check_circle, color: scheme.primary)
+          : Icon(Icons.circle_outlined, color: scheme.outline),
+      onTap: onTap,
     );
   }
 }
