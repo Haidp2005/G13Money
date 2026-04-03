@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../accounts/ui/accounts_page.dart';
 import '../../budgets/ui/budgets_page.dart';
 import '../../overview/ui/overview_page.dart';
+import '../../transactions/ui/add_transaction_form_page.dart';
 import '../../transactions/ui/transaction_screen.dart';
 import '../widgets/bottom_nav.dart';
 
@@ -83,10 +84,12 @@ class _MainShellPageState extends State<MainShellPage> {
       bottomNavigationBar: MoneyBottomNav(
         currentIndex: _selectedIndex,
         onItemTap: _onTapNavItem,
-        onAddTap: () {
-          setState(() {
-            _selectedIndex = MainShellPage.transactionsTab;
-          });
+        onAddTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const AddTransactionFormPage(),
+            ),
+          );
         },
       ),
     );

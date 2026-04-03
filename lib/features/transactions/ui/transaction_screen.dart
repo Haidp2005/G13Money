@@ -9,8 +9,6 @@ class TransactionScreen extends StatefulWidget {
 }
 
 class _TransactionScreenState extends State<TransactionScreen> {
-  String _currentFilter = 'Tháng này';
-
   // Dummy Data for demonstration
   final List<Map<String, dynamic>> _groupedTransactions = [
     {
@@ -82,16 +80,6 @@ class _TransactionScreenState extends State<TransactionScreen> {
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Navigate to Add Transaction
-        },
-        backgroundColor: scheme.primary,
-        foregroundColor: scheme.onPrimary,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: const Icon(Icons.add),
-      ),
       body: CustomScrollView(
         slivers: [
           // ── App Bar ──
@@ -101,7 +89,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
             backgroundColor: scheme.surface,
             surfaceTintColor: Colors.transparent,
             elevation: 0.5,
-            shadowColor: scheme.shadow.withOpacity(0.2),
+            shadowColor: scheme.shadow.withValues(alpha: 0.2),
             title: Text(
               'Sổ giao dịch',
               style: TextStyle(
@@ -126,7 +114,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: scheme.surfaceContainerHighest.withOpacity(0.5),
+                        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: TextField(
@@ -145,11 +133,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                   ),
                   // ── Filter Bar ──
                   _FilterBar(
-                    onFilterChanged: (filter) {
-                      setState(() {
-                        _currentFilter = filter;
-                      });
-                    },
+                    onFilterChanged: (_) {},
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -176,7 +160,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    backgroundColor: scheme.primary.withOpacity(0.04),
+                    backgroundColor: scheme.primary.withValues(alpha: 0.04),
                   ),
                   child: Text(
                     'Xem báo cáo cho giai đoạn này',
@@ -233,7 +217,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
 class _FilterBar extends StatefulWidget {
   final Function(String)? onFilterChanged;
 
-  const _FilterBar({super.key, this.onFilterChanged});
+  const _FilterBar({this.onFilterChanged});
 
   @override
   State<_FilterBar> createState() => _FilterBarState();
@@ -300,7 +284,6 @@ class _DateHeader extends StatelessWidget {
   final bool isIncome;
 
   const _DateHeader({
-    super.key,
     required this.dateStr,
     required this.totalAmount,
     this.isIncome = false,
@@ -347,7 +330,6 @@ class _TransactionItem extends StatelessWidget {
   final bool isIncome;
 
   const _TransactionItem({
-    super.key,
     required this.icon,
     required this.categoryColor,
     required this.title,
@@ -378,11 +360,11 @@ class _TransactionItem extends StatelessWidget {
         color: scheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: scheme.outlineVariant.withOpacity(0.3),
+          color: scheme.outlineVariant.withValues(alpha: 0.3),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             offset: const Offset(0, 2),
             blurRadius: 8,
           ),
@@ -402,7 +384,7 @@ class _TransactionItem extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: categoryColor.withOpacity(0.15),
+                    color: categoryColor.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
