@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/language_service.dart';
+import '../../../core/services/theme_service.dart';
 import '../../auth/ui/login_page.dart';
 import '../../../core/models/user_model.dart';
 import '../../../app/routes.dart';
@@ -322,7 +323,9 @@ class _MenuCard extends StatelessWidget {
       _SettingEntry(
         icon: Icons.color_lens_outlined,
         title: LanguageService.tr(vi: 'Giao diện', en: 'Appearance'),
-        subtitle: LanguageService.tr(vi: 'Chủ đề sáng', en: 'Light theme'),
+        subtitle: ThemeService.isDarkMode
+            ? LanguageService.tr(vi: 'Chủ đề tối', en: 'Dark theme')
+            : LanguageService.tr(vi: 'Chủ đề sáng', en: 'Light theme'),
       ),
       _SettingEntry(
         icon: Icons.help_outline,
@@ -382,6 +385,8 @@ class _MenuCard extends StatelessWidget {
                   Navigator.pushNamed(context, AppRoutes.changePassword);
                 } else if (item.icon == Icons.language_outlined) {
                   _showLanguageBottomSheet(context);
+                } else if (item.icon == Icons.color_lens_outlined) {
+                  _showThemeBottomSheet(context);
                 }
               },
             ),
@@ -390,6 +395,62 @@ class _MenuCard extends StatelessWidget {
       ),
     );
   }
+}
+
+void _showThemeBottomSheet(BuildContext context) {
+  final scheme = Theme.of(context).colorScheme;
+
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (_) => SafeArea(
+      child: ValueListenableBuilder<ThemeMode>(
+        valueListenable: ThemeService.notifier,
+        builder: (context, selectedMode, __) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  LanguageService.tr(vi: 'Chọn giao diện', en: 'Choose appearance'),
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                RadioListTile<ThemeMode>(
+                  value: ThemeMode.light,
+                  groupValue: selectedMode,
+                  title: Text(LanguageService.tr(vi: 'Sáng', en: 'Light')),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    ThemeService.setThemeMode(value);
+                    Navigator.pop(context);
+                  },
+                ),
+                RadioListTile<ThemeMode>(
+                  value: ThemeMode.dark,
+                  groupValue: selectedMode,
+                  title: Text(LanguageService.tr(vi: 'Tối', en: 'Dark')),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    ThemeService.setThemeMode(value);
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
 }
 
 class _SettingEntry {
