@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/transactions_repository.dart';
+import '../models/transaction.dart';
 import '../../shared/widgets/category_helper.dart';
 
 class TransactionsPage extends StatefulWidget {
@@ -30,21 +31,63 @@ class _TransactionsPageState extends State<TransactionsPage>
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final transactions = TransactionsRepository.instance.transactions;
+    final balance = transactions.fold<int>(
+      0,
+      (sum, tx) => sum + (tx.isIncome ? tx.amount.round() : -tx.amount.round()),
+    );
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,
-      appBar: AppBar(title: const Text('Giao dịch'), centerTitle: true),
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-        itemCount: _mockTransactions.length,
-        separatorBuilder: (_, index) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final item = _mockTransactions[index];
-          final amountColor = item.isIncome
-              ? const Color(0xFF1F9D55)
-              : scheme.error;
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Top Bar ──
+            _buildTopBar(scheme),
+            // ── Balance ──
+            _buildBalanceSection(scheme, balance),
+            // ── Tab Bar ──
+            _buildTabBar(scheme),
+            // ── Content ──
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  _buildTabContent(
+                    period: 'lastWeek',
+                    scheme: scheme,
+                    transactions: transactions,
+                  ),
+                  _buildTabContent(
+                    period: 'thisWeek',
+                    scheme: scheme,
+                    transactions: transactions,
+                  ),
+                  _buildTabContent(
+                    period: 'future',
+                    scheme: scheme,
+                    transactions: transactions,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-          return Container(
+  // ── Top Bar ──
+  Widget _buildTopBar(ColorScheme scheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          _headerIconButton(Icons.help_outline_rounded, scheme),
+          const Spacer(),
+          // Wallet selector chip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
               color: scheme.surface,
               borderRadius: BorderRadius.circular(20),
@@ -60,18 +103,198 @@ class _TransactionsPageState extends State<TransactionsPage>
                 ),
               ],
             ),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: item.color.withValues(alpha: 0.15),
-                child: Icon(item.icon, color: item.color),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🌐', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 8),
+                Text(
+                  'Tổng cộng',
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: scheme.outline,
+                  size: 18,
+                ),
+              ],
+            ),
+          ),
+          const Spacer(),
+          _headerIconButton(Icons.search_rounded, scheme),
+          const SizedBox(width: 8),
+          _headerIconButton(Icons.more_vert_rounded, scheme),
+        ],
+      ),
+    );
+  }
+
+  Widget _headerIconButton(IconData icon, ColorScheme scheme) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Icon(icon, color: scheme.onSurfaceVariant, size: 22),
+    );
+  }
+
+  // ── Balance Section ──
+  Widget _buildBalanceSection(ColorScheme scheme, int balance) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 16),
+      child: Column(
+        children: [
+          Text(
+            'Số dư',
+            style: TextStyle(
+              color: scheme.outline,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${_formatNumber(balance)} đ',
+            style: TextStyle(
+              color: scheme.onSurface,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Tab Bar ──
+  Widget _buildTabBar(ColorScheme scheme) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.4),
+            width: 1,
+          ),
+        ),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        labelColor: scheme.primary,
+        unselectedLabelColor: scheme.outline,
+        labelStyle: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.3,
+        ),
+        indicatorColor: scheme.primary,
+        indicatorWeight: 3,
+        indicatorSize: TabBarIndicatorSize.label,
+        dividerColor: Colors.transparent,
+        padding: EdgeInsets.zero,
+        labelPadding: const EdgeInsets.symmetric(vertical: 4),
+        tabs: const [
+          Tab(text: 'TUẦN TRƯỚC'),
+          Tab(text: 'TUẦN NÀY'),
+          Tab(text: 'TƯƠNG LAI'),
+        ],
+      ),
+    );
+  }
+
+  // ── Tab Content ──
+  Widget _buildTabContent({
+    required String period,
+    required ColorScheme scheme,
+    required List<MoneyTransaction> transactions,
+  }) {
+    final periodData = _getPeriodData(period, transactions);
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+      child: Column(
+        children: [
+          // ── Summary Card ──
+          _sectionCard(
+            scheme: scheme,
+            child: Column(
+              children: [
+                _summaryRow(
+                  'Tiền vào',
+                  _formatNumber(periodData.income),
+                  const Color(0xFF2DCC5A),
+                ),
+                const SizedBox(height: 12),
+                _summaryRow(
+                  'Tiền ra',
+                  _formatNumber(periodData.expense),
+                  const Color(0xFFFF6B6B),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(
+                    color: scheme.outlineVariant.withValues(alpha: 0.4),
+                    height: 1,
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      _formatNumber(periodData.income - periodData.expense),
+                      style: TextStyle(
+                        color: scheme.onSurface,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // ── Report Button ──
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () {},
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: scheme.primary, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundColor: scheme.primary.withValues(alpha: 0.04),
               ),
-              title: Text(
-                item.title,
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              subtitle: Text(item.date),
-              trailing: Text(
-                item.amount,
+              child: Text(
+                'Xem báo cáo cho giai đoạn này',
                 style: TextStyle(
                   color: scheme.primary,
                   fontSize: 14,
@@ -99,8 +322,9 @@ class _TransactionsPageState extends State<TransactionsPage>
                           _buildTransactionTile(entry.value, scheme),
                           if (!isLast)
                             Divider(
-                              color:
-                                  scheme.outlineVariant.withValues(alpha: 0.3),
+                              color: scheme.outlineVariant.withValues(
+                                alpha: 0.3,
+                              ),
                               indent: 70,
                               height: 1,
                             ),
@@ -168,10 +392,7 @@ class _TransactionsPageState extends State<TransactionsPage>
             ),
             Text(
               group.monthYear,
-              style: TextStyle(
-                color: scheme.outline,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: scheme.outline, fontSize: 12),
             ),
           ],
         ),
@@ -189,8 +410,9 @@ class _TransactionsPageState extends State<TransactionsPage>
   }
 
   Widget _buildTransactionTile(_TransactionItem item, ColorScheme scheme) {
-    final amountColor =
-        item.isIncome ? const Color(0xFF2DCC5A) : const Color(0xFFFF6B6B);
+    final amountColor = item.isIncome
+        ? const Color(0xFF2DCC5A)
+        : const Color(0xFFFF6B6B);
 
     return Padding(
       padding: const EdgeInsets.all(14),
@@ -222,16 +444,6 @@ class _TransactionsPageState extends State<TransactionsPage>
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (item.note != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    item.note!,
-                    style: TextStyle(
-                      color: scheme.outline,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -291,69 +503,102 @@ class _TransactionsPageState extends State<TransactionsPage>
     return isNegative ? '-${buffer.toString()}' : buffer.toString();
   }
 
-  _PeriodData _getPeriodData(String period) {
-    if (period == 'thisWeek') {
-      return _PeriodData(
-        income: 500000,
-        expense: 0,
-        transactionGroups: [
-          _TransactionGroup(
-            dayNumber: '31',
-            dayName: 'Thứ Ba',
-            monthYear: 'tháng 3 2026',
-            total: 500000,
-            transactions: [
-              _TransactionItem(
-                title: 'Lương',
-                note: 'Lương về',
-                amount: 500000,
-                isIncome: true,
-                icon: CategoryHelper.iconFor('Lương'),
-                categoryColor: CategoryHelper.colorFor('Lương'),
-              ),
-            ],
-          ),
-        ],
-      );
-    } else if (period == 'lastWeek') {
-      return _PeriodData(
-        income: 1000000,
-        expense: 150000,
-        transactionGroups: [
-          _TransactionGroup(
-            dayNumber: '25',
-            dayName: 'Thứ Tư',
-            monthYear: 'tháng 3 2026',
-            total: 850000,
-            transactions: [
-              _TransactionItem(
-                title: 'Tiền thưởng',
-                amount: 1000000,
-                isIncome: true,
-                icon: CategoryHelper.iconFor('Thưởng'),
-                categoryColor: CategoryHelper.colorFor('Thưởng'),
-              ),
-              _TransactionItem(
-                title: 'Ăn uống',
-                note: 'Cơm trưa',
-                amount: -50000,
-                isIncome: false,
-                icon: CategoryHelper.iconFor('Ăn uống'),
-                categoryColor: CategoryHelper.colorFor('Ăn uống'),
-              ),
-              _TransactionItem(
-                title: 'Mua sắm',
-                amount: -100000,
-                isIncome: false,
-                icon: CategoryHelper.iconFor('Mua sắm'),
-                categoryColor: CategoryHelper.colorFor('Mua sắm'),
-              ),
-            ],
-          ),
-        ],
-      );
+  _PeriodData _getPeriodData(
+    String period,
+    List<MoneyTransaction> transactions,
+  ) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final startOfThisWeek = _startOfWeek(today);
+    final endOfThisWeek = startOfThisWeek.add(const Duration(days: 6));
+    final startOfLastWeek = startOfThisWeek.subtract(const Duration(days: 7));
+    final endOfLastWeek = startOfThisWeek.subtract(const Duration(days: 1));
+
+    bool inPeriod(MoneyTransaction tx) {
+      final date = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      if (period == 'thisWeek') {
+        return !date.isBefore(startOfThisWeek) && !date.isAfter(endOfThisWeek);
+      }
+      if (period == 'lastWeek') {
+        return !date.isBefore(startOfLastWeek) && !date.isAfter(endOfLastWeek);
+      }
+      return date.isAfter(endOfThisWeek);
     }
-    return const _PeriodData(income: 0, expense: 0, transactionGroups: []);
+
+    final periodTransactions = transactions.where(inPeriod).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+
+    final income = periodTransactions
+        .where((tx) => tx.isIncome)
+        .fold<int>(0, (sum, tx) => sum + tx.amount.round());
+    final expense = periodTransactions
+        .where((tx) => !tx.isIncome)
+        .fold<int>(0, (sum, tx) => sum + tx.amount.round());
+
+    final grouped = <DateTime, List<MoneyTransaction>>{};
+    for (final tx in periodTransactions) {
+      final day = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      grouped.putIfAbsent(day, () => <MoneyTransaction>[]).add(tx);
+    }
+
+    final sortedDays = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+    final groups = sortedDays.map((day) {
+      final entries = grouped[day]!;
+      final total = entries.fold<int>(
+        0,
+        (sum, tx) =>
+            sum + (tx.isIncome ? tx.amount.round() : -tx.amount.round()),
+      );
+      final items = entries
+          .map(
+            (tx) => _TransactionItem(
+              title: tx.title,
+              amount: tx.isIncome ? tx.amount.round() : -tx.amount.round(),
+              isIncome: tx.isIncome,
+              icon: CategoryHelper.iconFor(tx.category),
+              categoryColor: CategoryHelper.colorFor(tx.category),
+            ),
+          )
+          .toList();
+
+      return _TransactionGroup(
+        dayNumber: day.day.toString().padLeft(2, '0'),
+        dayName: _weekdayLabel(day.weekday),
+        monthYear: 'tháng ${day.month} ${day.year}',
+        total: total,
+        transactions: items,
+      );
+    }).toList();
+
+    return _PeriodData(
+      income: income,
+      expense: expense,
+      transactionGroups: groups,
+    );
+  }
+
+  DateTime _startOfWeek(DateTime date) {
+    final difference = date.weekday - DateTime.monday;
+    return date.subtract(Duration(days: difference));
+  }
+
+  String _weekdayLabel(int weekday) {
+    switch (weekday) {
+      case DateTime.monday:
+        return 'Thứ Hai';
+      case DateTime.tuesday:
+        return 'Thứ Ba';
+      case DateTime.wednesday:
+        return 'Thứ Tư';
+      case DateTime.thursday:
+        return 'Thứ Năm';
+      case DateTime.friday:
+        return 'Thứ Sáu';
+      case DateTime.saturday:
+        return 'Thứ Bảy';
+      default:
+        return 'Chủ nhật';
+    }
   }
 }
 
@@ -389,44 +634,15 @@ class _TransactionGroup {
 class _TransactionItem {
   const _TransactionItem({
     required this.title,
-    required this.date,
     required this.amount,
     required this.isIncome,
     required this.icon,
-    required this.color,
+    required this.categoryColor,
   });
 
   final String title;
-  final String date;
-  final String amount;
+  final int amount;
   final bool isIncome;
   final IconData icon;
-  final Color color;
+  final Color categoryColor;
 }
-
-final List<_TransactionItem> _mockTransactions = [
-  _TransactionItem(
-    title: 'Lương tháng 4',
-    date: '01/04/2026',
-    amount: '+12,000,000 đ',
-    isIncome: true,
-    icon: CategoryHelper.iconFor('Lương'),
-    color: CategoryHelper.colorFor('Lương'),
-  ),
-  _TransactionItem(
-    title: 'Ăn uống',
-    date: '02/04/2026',
-    amount: '-120,000 đ',
-    isIncome: false,
-    icon: CategoryHelper.iconFor('Ăn uống'),
-    color: CategoryHelper.colorFor('Ăn uống'),
-  ),
-  _TransactionItem(
-    title: 'Di chuyển',
-    date: '02/04/2026',
-    amount: '-60,000 đ',
-    isIncome: false,
-    icon: CategoryHelper.iconFor('Di chuyển'),
-    color: CategoryHelper.colorFor('Di chuyển'),
-  ),
-];
