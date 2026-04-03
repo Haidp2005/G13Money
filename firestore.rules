@@ -36,6 +36,10 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      match /pending_transactions/{transactionId} {
+        allow read, write: if isOwner(userId);
+      }
+
       match /settings/{settingId} {
         allow read, write: if isOwner(userId);
       }
@@ -43,6 +47,18 @@ service cloud.firestore {
       match /{document=**} {
         allow read, write: if isOwner(userId);
       }
+    }
+
+    match /sepay_bindings/{bindingId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /sepay_events/{eventId} {
+      allow read: if false;
+      allow write: if false;
     }
 
     match /{document=**} {

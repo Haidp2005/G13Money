@@ -1,8 +1,10 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import '../../../app/routes.dart';
 import '../../../core/services/auth_service.dart';
 import '../../accounts/data/accounts_repository.dart';
+import '../../accounts/data/categories_repository.dart';
 import '../../accounts/models/account.dart';
 import '../../shared/widgets/bottom_nav.dart';
 import '../../shared/widgets/category_helper.dart';
@@ -41,7 +43,8 @@ class _OverviewPageState extends State<OverviewPage> {
     try {
       await Future.wait([
         AccountsRepository.instance.loadAccounts(forceRefresh: true),
-        TransactionsRepository.instance.loadTransactions(),
+        TransactionsRepository.instance.loadTransactions(forceRefresh: true),
+        CategoriesRepository.instance.loadCategories(forceRefresh: true),
       ]);
 
       if (!mounted) return;
@@ -302,13 +305,19 @@ class _OverviewPageState extends State<OverviewPage> {
         ),
         _headerIconButton(Icons.search_rounded, scheme),
         const SizedBox(width: 8),
-        _headerIconButton(Icons.notifications_none_rounded, scheme),
+        _headerIconButton(
+          Icons.notifications_none_rounded,
+          scheme,
+          onTap: () => Navigator.pushNamed(context, AppRoutes.notifications),
+        ),
       ],
     );
   }
 
-  Widget _headerIconButton(IconData icon, ColorScheme scheme) {
-    return Container(
+  Widget _headerIconButton(IconData icon, ColorScheme scheme, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       width: 42,
       height: 42,
       decoration: BoxDecoration(
@@ -320,6 +329,7 @@ class _OverviewPageState extends State<OverviewPage> {
         ),
       ),
       child: Icon(icon, color: scheme.onSurfaceVariant, size: 22),
+      ),
     );
   }
 

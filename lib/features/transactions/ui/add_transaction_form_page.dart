@@ -13,8 +13,30 @@ import '../../shared/widgets/category_helper.dart';
 
 enum _TransactionType { expense, income }
 
+class TransactionFormInitialData {
+  final String transactionId;
+  final String note;
+  final String walletName;
+  final String category;
+  final double amount;
+  final DateTime date;
+  final bool isIncome;
+
+  const TransactionFormInitialData({
+    required this.transactionId,
+    required this.note,
+    required this.walletName,
+    required this.category,
+    required this.amount,
+    required this.date,
+    required this.isIncome,
+  });
+}
+
 class AddTransactionFormPage extends StatefulWidget {
-  const AddTransactionFormPage({super.key});
+  final TransactionFormInitialData? initialData;
+
+  const AddTransactionFormPage({super.key, this.initialData});
 
   @override
   State<AddTransactionFormPage> createState() => _AddTransactionFormPageState();
@@ -35,6 +57,8 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
   bool _isSubmitting = false;
   bool _isMetaLoading = true;
 
+  bool get _isEditMode => widget.initialData != null;
+
   List<String> get _currentCategories {
     final targetType = _type == _TransactionType.income ? 'income' : 'expense';
     return _categories
@@ -46,7 +70,17 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
   @override
   void initState() {
     super.initState();
-    _amountController.text = '0';
+    final initial = widget.initialData;
+    if (initial == null) {
+      _amountController.text = '0';
+    } else {
+      _amountController.text = initial.amount.toStringAsFixed(0);
+      _noteController.text = initial.note;
+      _selectedWalletName = initial.walletName;
+      _selectedCategory = initial.category;
+      _selectedDate = initial.date;
+      _type = initial.isIncome ? _TransactionType.income : _TransactionType.expense;
+    }
     _loadMetaData();
   }
 
@@ -64,10 +98,10 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
       ..addAll(CategoriesRepository.instance.categories);
 
     final currentCategories = _currentCategories;
-    if (currentCategories.isNotEmpty) {
+    if (_selectedCategory.trim().isEmpty && currentCategories.isNotEmpty) {
       _selectedCategory = currentCategories.first;
     }
-    if (_wallets.isNotEmpty) {
+    if (_selectedWalletName.trim().isEmpty && _wallets.isNotEmpty) {
       _selectedWalletName = _wallets.first.name;
     }
 
@@ -378,14 +412,26 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
     });
 
     try {
-      await TransactionsRepository.instance.addTransaction(
-        title: title,
-        category: _selectedCategory,
-        walletName: _selectedWalletName,
-        amount: normalizedAmount,
-        date: _selectedDate,
-        isIncome: isIncome,
-      );
+      if (_isEditMode) {
+        await TransactionsRepository.instance.updateTransaction(
+          id: widget.initialData!.transactionId,
+          title: title,
+          category: _selectedCategory,
+          walletName: _selectedWalletName,
+          amount: normalizedAmount,
+          date: _selectedDate,
+          isIncome: isIncome,
+        );
+      } else {
+        await TransactionsRepository.instance.addTransaction(
+          title: title,
+          category: _selectedCategory,
+          walletName: _selectedWalletName,
+          amount: normalizedAmount,
+          date: _selectedDate,
+          isIncome: isIncome,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -403,13 +449,13 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
       SnackBar(
         content: Text(
           LanguageService.tr(
-            vi: 'Đã lưu giao dịch',
-            en: 'Transaction saved',
+            vi: _isEditMode ? 'Đã cập nhật giao dịch' : 'Đã lưu giao dịch',
+            en: _isEditMode ? 'Transaction updated' : 'Transaction saved',
           ),
         ),
       ),
     );
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -430,7 +476,10 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          LanguageService.tr(vi: 'Thêm giao dịch', en: 'Add transaction'),
+          LanguageService.tr(
+            vi: _isEditMode ? 'Sửa giao dịch' : 'Thêm giao dịch',
+            en: _isEditMode ? 'Edit transaction' : 'Add transaction',
+          ),
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),

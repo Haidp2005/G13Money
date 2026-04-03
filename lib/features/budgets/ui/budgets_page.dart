@@ -49,18 +49,13 @@ class _BudgetsPageState extends State<BudgetsPage> {
               budget.copyWith(spent: _spentForBudget(budget, transactions)),
         )
         .toList();
-    final monthlyTransactions = _transactionsInMonth(
-      transactions,
-      DateTime.now(),
-    );
+    final scopedSpent = _spentInBudgetScope(budgets, transactions);
 
     final scheme = Theme.of(context).colorScheme;
     final viewportHeight = MediaQuery.sizeOf(context).height;
     final expandedHeaderHeight = (viewportHeight * 0.56).clamp(360.0, 520.0);
     final monthLabel = _monthLabel(DateTime.now());
-    final totalSpent = monthlyTransactions
-        .where((item) => !item.isIncome)
-        .fold<double>(0, (sum, item) => sum + item.amount);
+    final totalSpent = scopedSpent;
     final totalBudgetLimit = budgets.fold<double>(
       0,
       (sum, budget) => sum + budget.limit,
@@ -68,9 +63,6 @@ class _BudgetsPageState extends State<BudgetsPage> {
     final remainingBudgetLimit = totalBudgetLimit - totalSpent;
     final isLimitCritical =
         totalBudgetLimit > 0 && (remainingBudgetLimit / totalBudgetLimit) < 0.1;
-    final totalIncome = monthlyTransactions
-        .where((item) => item.isIncome)
-        .fold<double>(0, (sum, item) => sum + item.amount);
     final daysRemaining = _daysRemainingInCurrentMonth();
 
     return Scaffold(
@@ -93,7 +85,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
               background: _Header(
                 scheme: scheme,
                 monthLabel: monthLabel,
-                totalIncome: totalIncome,
+                totalBudgetLimit: totalBudgetLimit,
                 totalSpent: totalSpent,
                 remainingBudgetLimit: remainingBudgetLimit,
                 isLimitCritical: isLimitCritical,
@@ -249,23 +241,50 @@ class _BudgetsPageState extends State<BudgetsPage> {
         .fold<double>(0, (sum, item) => sum + item.amount);
   }
 
-  List<MoneyTransaction> _transactionsInMonth(
+  double _spentInBudgetScope(
+    List<Budget> budgets,
     List<MoneyTransaction> transactions,
-    DateTime month,
   ) {
-    return transactions
-        .where(
-          (item) =>
-              item.date.year == month.year && item.date.month == month.month,
-        )
-        .toList();
+    if (budgets.isEmpty) return 0;
+
+    final matchedTxById = <String, MoneyTransaction>{};
+    for (final tx in transactions) {
+      if (tx.isIncome) continue;
+      for (final budget in budgets) {
+        if (_matchesBudget(tx, budget)) {
+          matchedTxById[tx.id] = tx;
+          break;
+        }
+      }
+    }
+
+    return matchedTxById.values.fold<double>(0, (sum, item) => sum + item.amount);
+  }
+
+  bool _matchesBudget(MoneyTransaction item, Budget budget) {
+    final normalizedCategory = budget.category.trim().toLowerCase();
+    final normalizedWallet = budget.walletName.trim().toLowerCase();
+    final useAllWallets =
+        normalizedWallet == 'tất cả ví' ||
+        normalizedWallet == 'tất cả loại ví' ||
+        normalizedWallet == 'tat ca vi' ||
+        normalizedWallet == 'all';
+
+    if (item.category.trim().toLowerCase() != normalizedCategory) return false;
+    if (item.date.isBefore(budget.startDate) || item.date.isAfter(budget.endDate)) {
+      return false;
+    }
+    if (!useAllWallets && item.walletName.trim().toLowerCase() != normalizedWallet) {
+      return false;
+    }
+    return true;
   }
 }
 
 class _Header extends StatelessWidget {
   final ColorScheme scheme;
   final String monthLabel;
-  final double totalIncome;
+  final double totalBudgetLimit;
   final double totalSpent;
   final double remainingBudgetLimit;
   final bool isLimitCritical;
@@ -274,7 +293,7 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.scheme,
     required this.monthLabel,
-    required this.totalIncome,
+    required this.totalBudgetLimit,
     required this.totalSpent,
     required this.remainingBudgetLimit,
     required this.isLimitCritical,
@@ -283,9 +302,9 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final overallProgress = totalIncome == 0
+    final overallProgress = totalBudgetLimit == 0
         ? 0.0
-        : (totalSpent / totalIncome).clamp(0.0, 1.0);
+        : (totalSpent / totalBudgetLimit).clamp(0.0, 1.0);
 
     return Container(
       decoration: BoxDecoration(
@@ -360,8 +379,8 @@ class _Header extends StatelessWidget {
                       children: [
                         Expanded(
                           child: _SummaryTile(
-                            label: 'Tổng thu',
-                            value: _formatMoney(totalIncome),
+                            label: 'Tổng ngân sách',
+                            value: _formatMoney(totalBudgetLimit),
                           ),
                         ),
                         const SizedBox(width: 10),

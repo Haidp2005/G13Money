@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/services/language_service.dart';
+import '../../shared/widgets/category_helper.dart';
 import '../data/categories_repository.dart';
 import '../models/category_item.dart';
 
@@ -435,22 +436,5 @@ class _IconOption {
 }
 
 IconData _iconForKey(String key) {
-  for (final option in _iconOptions) {
-    if (option.key == key) return option.icon;
-  }
-
-  switch (key) {
-    case 'car':
-      return Icons.directions_car_outlined;
-    case 'shopping':
-      return Icons.shopping_bag_outlined;
-    case 'salary':
-      return Icons.payments_outlined;
-    case 'bonus':
-      return Icons.card_giftcard_outlined;
-    case 'income_other':
-      return Icons.moving_outlined;
-  }
-
-  return Icons.category_outlined;
+  return CategoryHelper.iconForKey(key);
 }

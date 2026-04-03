@@ -1,0 +1,11 @@
+name = "g13money-sepay-webhook"
+main = "src/index.js"
+compatibility_date = "2026-04-04"
+
+[vars]
+FIREBASE_PROJECT_ID = "g13pals"
+SEPAY_WEBHOOK_TOKEN = "change-me"
+
+# Set sensitive values via CLI secrets:
+# wrangler secret put FIREBASE_CLIENT_EMAIL
+# wrangler secret put FIREBASE_PRIVATE_KEY

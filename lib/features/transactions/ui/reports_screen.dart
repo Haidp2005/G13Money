@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../shared/widgets/category_helper.dart';
+import '../../accounts/data/accounts_repository.dart';
+import '../../accounts/data/categories_repository.dart';
 import '../models/transaction.dart';
 import '../data/transactions_repository.dart';
 
@@ -22,7 +24,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Future<void> _loadTransactions() async {
-    await TransactionsRepository.instance.loadTransactions();
+    await Future.wait([
+      TransactionsRepository.instance.loadTransactions(forceRefresh: true),
+      AccountsRepository.instance.loadAccounts(forceRefresh: true),
+      CategoriesRepository.instance.loadCategories(forceRefresh: true),
+    ]);
     if (!mounted) return;
     setState(() {});
   }
@@ -38,7 +44,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     final totalIncome = incomeTx.fold<double>(0, (sum, t) => sum + t.amount);
     final totalExpense = expenseTx.fold<double>(0, (sum, t) => sum + t.amount);
-    final totalBalance = totalIncome - totalExpense;
+    final totalBalance = AccountsRepository.instance.accounts
+      .fold<double>(0, (sum, account) => sum + account.balance);
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,

@@ -1,0 +1,7 @@
+name = "g13money-sepay-webhook"
+main = "src/index.js"
+compatibility_date = "2026-04-03"
+
+[vars]
+FIREBASE_PROJECT_ID = "g13pals"
+SEPAY_WEBHOOK_TOKEN = "g13money-sepay-token-change-me"

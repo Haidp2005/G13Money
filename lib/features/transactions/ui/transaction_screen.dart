@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'reports_screen.dart';
+import 'add_transaction_form_page.dart';
+import '../../accounts/data/categories_repository.dart';
 import '../data/transactions_repository.dart';
 import '../models/transaction.dart';
 import '../../shared/widgets/category_helper.dart';
@@ -84,7 +86,10 @@ class _TransactionScreenState extends State<TransactionScreen> {
   }
 
   Future<void> _loadTransactions() async {
-    await TransactionsRepository.instance.loadTransactions();
+    await Future.wait([
+      TransactionsRepository.instance.loadTransactions(forceRefresh: true),
+      CategoriesRepository.instance.loadCategories(forceRefresh: true),
+    ]);
     if (!mounted) return;
     setState(() {});
   }
@@ -119,6 +124,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
         'transactions': txList
             .map(
               (tx) => {
+                'tx': tx,
                 'icon': CategoryHelper.iconFor(tx.category),
                 'categoryColor': CategoryHelper.colorFor(tx.category),
                 'title': tx.title,
@@ -292,6 +298,28 @@ class _TransactionScreenState extends State<TransactionScreen> {
                           note: tx['note'],
                           amount: tx['amount'],
                           isIncome: tx['isIncome'],
+                          onTap: () async {
+                            final original = tx['tx'] as MoneyTransaction;
+                            final updated = await Navigator.push<bool>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => AddTransactionFormPage(
+                                  initialData: TransactionFormInitialData(
+                                    transactionId: original.id,
+                                    note: original.title,
+                                    walletName: original.walletName,
+                                    category: original.category,
+                                    amount: original.amount,
+                                    date: original.date,
+                                    isIncome: original.isIncome,
+                                  ),
+                                ),
+                              ),
+                            );
+                            if (updated == true) {
+                              await _loadTransactions();
+                            }
+                          },
                         )),
                      ],
                   );
@@ -421,6 +449,7 @@ class _TransactionItem extends StatelessWidget {
   final String note;
   final double amount;
   final bool isIncome;
+  final VoidCallback? onTap;
 
   const _TransactionItem({
     required this.icon,
@@ -429,6 +458,7 @@ class _TransactionItem extends StatelessWidget {
     required this.note,
     required this.amount,
     required this.isIncome,
+    this.onTap,
   });
 
   String _formatCurrency(double value) {
@@ -468,7 +498,7 @@ class _TransactionItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {},
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
