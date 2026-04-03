@@ -20,7 +20,7 @@ class ExpenseManagerApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Roboto',
       ),
-      initialRoute: AppRoutes.budgets,
+      initialRoute: AppRoutes.transactions,
       routes: AppRoutes.map,
     );
   }
