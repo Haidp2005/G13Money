@@ -389,6 +389,8 @@ class _MenuCard extends StatelessWidget {
                   _showLanguageBottomSheet(context);
                 } else if (item.icon == Icons.color_lens_outlined) {
                   _showThemeBottomSheet(context);
+                } else if (item.icon == Icons.help_outline) {
+                  Navigator.pushNamed(context, AppRoutes.helpCenter);
                 }
               },
             ),
