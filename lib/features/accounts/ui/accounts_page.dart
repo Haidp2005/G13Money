@@ -355,7 +355,11 @@ class _MenuCard extends StatelessWidget {
               scheme: scheme,
               onTap: () {
                 if (item.$2 == 'Ngân sách') {
-                  Navigator.pushNamed(context, AppRoutes.budgets);
+                  Navigator.pushReplacementNamed(
+                    context,
+                    AppRoutes.home,
+                    arguments: 3,
+                  );
                 }
               },
             ),
@@ -450,7 +454,7 @@ class _LogoutButton extends StatelessWidget {
               Navigator.pop(ctx);
               Navigator.pushNamedAndRemoveUntil(
                 context,
-                '/login',
+                AppRoutes.login,
                 (_) => false,
               );
             },

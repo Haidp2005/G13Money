@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
+import '../../shared/widgets/category_helper.dart';
 import '../models/budget.dart';
 import 'budget_form.dart';
 
@@ -20,8 +21,8 @@ class _BudgetsPageState extends State<BudgetsPage> {
       limit: 3000000,
       spent: 1850000,
       date: DateTime(2026, 4, 15),
-      color: const Color(0xFFE07A5F),
-      icon: Icons.restaurant_outlined,
+      color: CategoryHelper.colorFor('Ăn uống'),
+      icon: CategoryHelper.iconFor('Ăn uống'),
     ),
     Budget(
       id: 'budget-transport',
@@ -30,8 +31,8 @@ class _BudgetsPageState extends State<BudgetsPage> {
       limit: 1200000,
       spent: 620000,
       date: DateTime(2026, 4, 15),
-      color: const Color(0xFF3D5A80),
-      icon: Icons.directions_car_outlined,
+      color: CategoryHelper.colorFor('Di chuyển'),
+      icon: CategoryHelper.iconFor('Di chuyển'),
     ),
     Budget(
       id: 'budget-shopping',
@@ -40,8 +41,8 @@ class _BudgetsPageState extends State<BudgetsPage> {
       limit: 2500000,
       spent: 2350000,
       date: DateTime(2026, 4, 15),
-      color: const Color(0xFF9B5DE5),
-      icon: Icons.shopping_bag_outlined,
+      color: CategoryHelper.colorFor('Mua sắm'),
+      icon: CategoryHelper.iconFor('Mua sắm'),
     ),
   ];
 

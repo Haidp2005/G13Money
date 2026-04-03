@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../shared/widgets/category_helper.dart';
 import '../models/budget.dart';
 
 class BudgetForm extends StatefulWidget {
@@ -215,8 +216,8 @@ class _BudgetFormState extends State<BudgetForm> {
       limit: double.parse(_limitController.text.replaceAll(',', '').trim()),
       spent: double.parse(_spentController.text.replaceAll(',', '').trim()),
       date: _date,
-      color: _budgetColorForCategory(_categoryController.text.trim()),
-      icon: _budgetIconForCategory(_categoryController.text.trim()),
+      color: CategoryHelper.colorFor(_categoryController.text.trim()),
+      icon: CategoryHelper.iconFor(_categoryController.text.trim()),
     );
 
     Navigator.pop(context, budget);
@@ -264,36 +265,4 @@ class _DateField extends StatelessWidget {
   }
 }
 
-Color _budgetColorForCategory(String category) {
-  final normalized = category.toLowerCase();
-  if (normalized.contains('ăn') || normalized.contains('food')) {
-    return const Color(0xFFE07A5F);
-  }
-  if (normalized.contains('di chuyển') || normalized.contains('transport')) {
-    return const Color(0xFF3D5A80);
-  }
-  if (normalized.contains('nhà') || normalized.contains('rent')) {
-    return const Color(0xFF81B29A);
-  }
-  if (normalized.contains('mua sắm') || normalized.contains('shop')) {
-    return const Color(0xFF9B5DE5);
-  }
-  return const Color(0xFF0D7377);
-}
-
-IconData _budgetIconForCategory(String category) {
-  final normalized = category.toLowerCase();
-  if (normalized.contains('ăn') || normalized.contains('food')) {
-    return Icons.restaurant_outlined;
-  }
-  if (normalized.contains('di chuyển') || normalized.contains('transport')) {
-    return Icons.directions_car_outlined;
-  }
-  if (normalized.contains('nhà') || normalized.contains('rent')) {
-    return Icons.home_outlined;
-  }
-  if (normalized.contains('mua sắm') || normalized.contains('shop')) {
-    return Icons.shopping_bag_outlined;
-  }
-  return Icons.account_balance_wallet_outlined;
-}
+// Category icon/color mapping is now centralized in CategoryHelper.

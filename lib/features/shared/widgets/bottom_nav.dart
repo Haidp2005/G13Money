@@ -14,11 +14,24 @@ class MoneyBottomNav extends StatelessWidget {
 
 	@override
 	Widget build(BuildContext context) {
+		final scheme = Theme.of(context).colorScheme;
+
 		return Container(
 			height: 84,
-			decoration: const BoxDecoration(
-				color: Color(0xFF141518),
-				border: Border(top: BorderSide(color: Color(0xFF21242A))),
+			decoration: BoxDecoration(
+				color: scheme.surface,
+				border: Border(
+					top: BorderSide(
+						color: scheme.outlineVariant.withValues(alpha: 0.3),
+					),
+				),
+				boxShadow: [
+					BoxShadow(
+						color: Colors.black.withValues(alpha: 0.06),
+						blurRadius: 12,
+						offset: const Offset(0, -4),
+					),
+				],
 			),
 			child: Row(
 				mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -41,9 +54,22 @@ class MoneyBottomNav extends StatelessWidget {
 							width: 58,
 							height: 58,
 							decoration: BoxDecoration(
-								color: const Color(0xFF2DCC5A),
+								gradient: LinearGradient(
+									begin: Alignment.topLeft,
+									end: Alignment.bottomRight,
+									colors: [
+										scheme.primary,
+										scheme.tertiary,
+									],
+								),
 								shape: BoxShape.circle,
-								border: Border.all(color: const Color(0xFF1C9D43), width: 2),
+								boxShadow: [
+									BoxShadow(
+										color: scheme.primary.withValues(alpha: 0.35),
+										blurRadius: 14,
+										offset: const Offset(0, 5),
+									),
+								],
 							),
 							child: const Icon(Icons.add, color: Colors.white, size: 34),
 						),
@@ -81,7 +107,8 @@ class _NavItem extends StatelessWidget {
 
 	@override
 	Widget build(BuildContext context) {
-		final Color color = active ? Colors.white : const Color(0xFF858B96);
+		final scheme = Theme.of(context).colorScheme;
+		final Color color = active ? scheme.primary : scheme.outline;
 
 		return Expanded(
 			child: InkWell(
@@ -89,7 +116,17 @@ class _NavItem extends StatelessWidget {
 				child: Column(
 					mainAxisAlignment: MainAxisAlignment.center,
 					children: [
-						Icon(icon, color: color, size: 26),
+						AnimatedContainer(
+							duration: const Duration(milliseconds: 200),
+							padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+							decoration: BoxDecoration(
+								color: active
+										? scheme.primaryContainer.withValues(alpha: 0.7)
+										: Colors.transparent,
+								borderRadius: BorderRadius.circular(14),
+							),
+							child: Icon(icon, color: color, size: 24),
+						),
 						const SizedBox(height: 4),
 						Text(
 							label,

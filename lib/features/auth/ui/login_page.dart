@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../app/routes.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -58,7 +59,7 @@ class _LoginPageState extends State<LoginPage>
     try {
       await AuthService.login(_emailCtrl.text, _passCtrl.text);
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/profile');
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
       }
     } catch (e) {
       if (mounted) {
@@ -145,11 +146,7 @@ class _Background extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                scheme.primary,
-                scheme.tertiary,
-                scheme.secondary,
-              ],
+              colors: [scheme.primary, scheme.tertiary, scheme.secondary],
               stops: const [0.0, 0.55, 1.0],
             ),
           ),
@@ -158,17 +155,26 @@ class _Background extends StatelessWidget {
         Positioned(
           top: -size.width * 0.3,
           right: -size.width * 0.2,
-          child: _Circle(size.width * 0.75, Colors.white.withValues(alpha: 0.07)),
+          child: _Circle(
+            size.width * 0.75,
+            Colors.white.withValues(alpha: 0.07),
+          ),
         ),
         Positioned(
           bottom: -size.height * 0.15,
           left: -size.width * 0.25,
-          child: _Circle(size.width * 0.8, Colors.white.withValues(alpha: 0.06)),
+          child: _Circle(
+            size.width * 0.8,
+            Colors.white.withValues(alpha: 0.06),
+          ),
         ),
         Positioned(
           top: size.height * 0.25,
           left: -size.width * 0.1,
-          child: _Circle(size.width * 0.4, Colors.white.withValues(alpha: 0.04)),
+          child: _Circle(
+            size.width * 0.4,
+            Colors.white.withValues(alpha: 0.04),
+          ),
         ),
       ],
     );
@@ -206,7 +212,10 @@ class _Logo extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.15),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 2),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.4),
+              width: 2,
+            ),
           ),
           child: const Icon(
             Icons.account_balance_wallet_rounded,
