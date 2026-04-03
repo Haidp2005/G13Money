@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../features/accounts/ui/accounts_page.dart';
 import '../features/accounts/ui/change_password_page.dart';
 import '../features/accounts/ui/edit_profile_page.dart';
+import '../features/accounts/ui/notifications_page.dart';
 import '../features/budgets/ui/budgets_page.dart';
 import '../features/auth/ui/login_page.dart';
 import '../features/shared/ui/main_shell_page.dart';
@@ -13,6 +14,7 @@ abstract final class AppRoutes {
   static const String profile = '/profile';
   static const String editProfile = '/edit-profile';
   static const String changePassword = '/change-password';
+  static const String notifications = '/notifications';
   static const String budgets = '/budgets';
 
   static final Map<String, WidgetBuilder> map = {
@@ -25,6 +27,7 @@ abstract final class AppRoutes {
     profile: (context) => const ProfilePage(),
     editProfile: (context) => const EditProfilePage(),
     changePassword: (context) => const ChangePasswordPage(),
+    notifications: (context) => const NotificationsPage(),
     budgets: (context) => const BudgetsPage(),
   };
 }

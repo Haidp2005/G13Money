@@ -381,6 +381,8 @@ class _MenuCard extends StatelessWidget {
                     AppRoutes.home,
                     arguments: 3,
                   );
+                } else if (item.icon == Icons.notifications_outlined) {
+                  Navigator.pushNamed(context, AppRoutes.notifications);
                 } else if (item.icon == Icons.lock_outline) {
                   Navigator.pushNamed(context, AppRoutes.changePassword);
                 } else if (item.icon == Icons.language_outlined) {

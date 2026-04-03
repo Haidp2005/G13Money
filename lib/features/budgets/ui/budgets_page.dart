@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
+import '../../../core/models/app_notification.dart';
 import '../../../core/services/language_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../shared/widgets/category_helper.dart';
 import '../models/budget.dart';
 import 'budget_form.dart';
@@ -46,6 +48,12 @@ class _BudgetsPageState extends State<BudgetsPage> {
       icon: CategoryHelper.iconFor('Mua sắm'),
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _emitBudgetAlerts();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -183,6 +191,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
         _budgets.insert(0, result);
       }
     });
+    _emitBudgetAlerts();
   }
 
   void _deleteBudget(Budget budget) {
@@ -207,12 +216,60 @@ class _BudgetsPageState extends State<BudgetsPage> {
               setState(
                 () => _budgets.removeWhere((item) => item.id == budget.id),
               );
+              _emitBudgetAlerts();
             },
             child: Text(LanguageService.tr(vi: 'Xóa', en: 'Delete')),
           ),
         ],
       ),
     );
+  }
+
+  void _emitBudgetAlerts() {
+    final prefs = NotificationService.preferences.value;
+    if (!prefs.budgetAlerts) return;
+
+    for (final budget in _budgets) {
+      final ratio = budget.limit <= 0 ? 0.0 : budget.spent / budget.limit;
+
+      if (ratio >= 1) {
+        NotificationService.addUnique(
+          uniqueKey: 'budget:${budget.id}:100',
+          notification: AppNotification(
+            id: 'ntf-${DateTime.now().microsecondsSinceEpoch}-${budget.id}-100',
+            title: LanguageService.tr(
+              vi: 'Cảnh báo vượt ngân sách',
+              en: 'Budget exceeded',
+            ),
+            message: LanguageService.tr(
+              vi: '"${budget.title}" đã vượt hạn mức.',
+              en: '"${budget.title}" has exceeded its limit.',
+            ),
+            createdAt: DateTime.now(),
+            isRead: false,
+            type: AppNotificationType.budgetExceeded,
+          ),
+        );
+      } else if (ratio >= 0.8) {
+        NotificationService.addUnique(
+          uniqueKey: 'budget:${budget.id}:80',
+          notification: AppNotification(
+            id: 'ntf-${DateTime.now().microsecondsSinceEpoch}-${budget.id}-80',
+            title: LanguageService.tr(
+              vi: 'Ngân sách sắp chạm hạn mức',
+              en: 'Budget nearly reached',
+            ),
+            message: LanguageService.tr(
+              vi: '"${budget.title}" đã dùng ${budget.usageLabel}.',
+              en: '"${budget.title}" has used ${budget.usageLabel}.',
+            ),
+            createdAt: DateTime.now(),
+            isRead: false,
+            type: AppNotificationType.budgetWarning,
+          ),
+        );
+      }
+    }
   }
 }
 
