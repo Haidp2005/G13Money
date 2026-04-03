@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../accounts/ui/accounts_page.dart';
 import '../../budgets/ui/budgets_page.dart';
 import '../../overview/ui/overview_page.dart';
-import '../../transactions/ui/transactions_page.dart';
+import '../../transactions/ui/transaction_screen.dart';
 import '../widgets/bottom_nav.dart';
 
 class MainShellPage extends StatefulWidget {
@@ -24,7 +24,7 @@ class _MainShellPageState extends State<MainShellPage> {
   late int _selectedIndex;
 
   final Widget _overviewPage = const OverviewPage(showBottomNav: false);
-  final Widget _transactionsPage = const TransactionsPage();
+  final Widget _transactionsPage = const TransactionScreen();
   final Widget _budgetsPage = const BudgetsPage();
   final Widget _profilePage = const ProfilePage();
 
