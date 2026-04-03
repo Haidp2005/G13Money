@@ -360,6 +360,8 @@ class _MenuCard extends StatelessWidget {
                     AppRoutes.home,
                     arguments: 3,
                   );
+                } else if (item.$2 == 'Bảo mật') {
+                  Navigator.pushNamed(context, AppRoutes.changePassword);
                 }
               },
             ),
