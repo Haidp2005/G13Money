@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/services/language_service.dart';
 import '../../shared/widgets/category_helper.dart';
 import '../models/budget.dart';
 
@@ -16,33 +15,67 @@ class BudgetForm extends StatefulWidget {
 class _BudgetFormState extends State<BudgetForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
-  late final TextEditingController _categoryController;
   late final TextEditingController _limitController;
-  late final TextEditingController _spentController;
 
-  late DateTime _date;
+  String _selectedCategory = 'Ăn uống';
+  final List<String> _categories = [
+    'Ăn uống',
+    'Di chuyển',
+    'Mua sắm',
+    'Nhà ở',
+    'Giải trí',
+    'Sức khỏe',
+    'Giáo dục',
+    'Hóa đơn',
+  ];
+
+  String _selectedWallet = 'Tất cả ví';
+  final List<String> _wallets = [
+    'Tất cả ví',
+    'Tiền mặt',
+    'Vietcombank',
+    'Techcombank',
+    'Momo',
+    'ZaloPay',
+  ];
+
+  late DateTime _startDate;
+  late DateTime _endDate;
 
   @override
   void initState() {
     super.initState();
     final budget = widget.initialBudget;
     _titleController = TextEditingController(text: budget?.title ?? '');
-    _categoryController = TextEditingController(text: budget?.category ?? '');
     _limitController = TextEditingController(
       text: budget == null ? '' : budget.limit.toStringAsFixed(0),
     );
-    _spentController = TextEditingController(
-      text: budget == null ? '0' : budget.spent.toStringAsFixed(0),
+
+    if (budget != null && !_categories.contains(budget.category)) {
+      _categories.add(budget.category);
+    }
+    _selectedCategory = budget?.category ?? _categories.first;
+
+    if (budget != null && !_wallets.contains(budget.walletName)) {
+      _wallets.add(budget.walletName);
+    }
+    _selectedWallet = budget?.walletName ?? _wallets.first;
+
+    final now = DateTime.now();
+    _startDate = _toCurrentMonthWithDay(budget?.startDate.day ?? 1);
+    _endDate = _toCurrentMonthWithDay(
+      budget?.endDate.day ?? DateTime(now.year, now.month + 1, 0).day,
     );
-    _date = budget?.date ?? DateTime.now();
+
+    if (_endDate.isBefore(_startDate)) {
+      _endDate = _startDate;
+    }
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _categoryController.dispose();
     _limitController.dispose();
-    _spentController.dispose();
     super.dispose();
   }
 
@@ -78,9 +111,7 @@ class _BudgetFormState extends State<BudgetForm> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  isEditing
-                      ? LanguageService.tr(vi: 'Chỉnh sửa ngân sách', en: 'Edit budget')
-                      : LanguageService.tr(vi: 'Tạo ngân sách mới', en: 'Create new budget'),
+                  isEditing ? 'Chỉnh sửa ngân sách' : 'Tạo ngân sách mới',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
@@ -88,91 +119,92 @@ class _BudgetFormState extends State<BudgetForm> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  LanguageService.tr(
-                    vi: 'Thiết lập hạn mức theo danh mục và thời gian theo dõi.',
-                    en: 'Set spending limit by category and tracking time.',
-                  ),
+                  'Thiết lập hạn mức theo danh mục và thời gian theo dõi.',
                   style: TextStyle(color: scheme.outline),
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _titleController,
                   textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: LanguageService.tr(vi: 'Tên ngân sách', en: 'Budget name'),
-                    hintText: LanguageService.tr(
-                      vi: 'Ví dụ: Chi tiêu ăn uống tháng này',
-                      en: 'Example: Food spending this month',
-                    ),
+                  decoration: const InputDecoration(
+                    labelText: 'Tên ngân sách',
+                    hintText: 'Ví dụ: Chi tiêu ăn uống tháng này',
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return LanguageService.tr(
-                        vi: 'Vui lòng nhập tên ngân sách',
-                        en: 'Please enter budget name',
-                      );
+                      return 'Vui lòng nhập tên ngân sách';
                     }
                     return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCategory,
+                  decoration: const InputDecoration(labelText: 'Danh mục'),
+                  items: _categories.map((category) {
+                    return DropdownMenuItem(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedCategory = value;
+                      });
+                    }
+                  },
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Vui lòng chọn danh mục';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedWallet,
+                  decoration: const InputDecoration(
+                    labelText: 'Áp dụng cho ví/tài khoản',
+                  ),
+                  items: _wallets.map((wallet) {
+                    return DropdownMenuItem(value: wallet, child: Text(wallet));
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedWallet = value;
+                      });
+                    }
                   },
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
-                  controller: _categoryController,
+                  controller: _limitController,
+                  keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: LanguageService.tr(vi: 'Danh mục', en: 'Category'),
-                    hintText: LanguageService.tr(
-                      vi: 'Ví dụ: Ăn uống, Di chuyển',
-                      en: 'Example: Food, Transport',
-                    ),
+                  decoration: const InputDecoration(
+                    labelText: 'Hạn mức',
+                    suffixText: 'VNĐ',
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return LanguageService.tr(
-                        vi: 'Vui lòng nhập danh mục',
-                        en: 'Please enter category',
-                      );
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _limitController,
-                        keyboardType: TextInputType.number,
-                        textInputAction: TextInputAction.next,
-                        decoration: InputDecoration(
-                          labelText: LanguageService.tr(vi: 'Hạn mức', en: 'Limit'),
-                          suffixText: 'VNĐ',
-                        ),
-                        validator: _validateMoney,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _spentController,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          labelText: LanguageService.tr(vi: 'Đã chi', en: 'Spent'),
-                          suffixText: 'VNĐ',
-                        ),
-                        validator: _validateMoney,
-                      ),
-                    ),
-                  ],
+                  validator: _validateMoney,
                 ),
                 const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
                       child: _DateField(
-                        label: LanguageService.tr(vi: 'Ngày', en: 'Date'),
-                        value: _formatDate(_date),
-                        onTap: () => _pickDate(),
+                        label: 'Từ ngày',
+                        value: _formatDay(_startDate),
+                        onTap: () => _pickStartDate(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _DateField(
+                        label: 'Đến ngày',
+                        value: _formatDay(_endDate),
+                        onTap: () => _pickEndDate(),
                       ),
                     ),
                   ],
@@ -184,9 +216,7 @@ class _BudgetFormState extends State<BudgetForm> {
                     onPressed: _submit,
                     icon: const Icon(Icons.save_outlined),
                     label: Text(
-                      isEditing
-                          ? LanguageService.tr(vi: 'Cập nhật ngân sách', en: 'Update budget')
-                          : LanguageService.tr(vi: 'Tạo ngân sách', en: 'Create budget'),
+                      isEditing ? 'Cập nhật ngân sách' : 'Tạo ngân sách',
                     ),
                   ),
                 ),
@@ -200,26 +230,50 @@ class _BudgetFormState extends State<BudgetForm> {
 
   String? _validateMoney(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return LanguageService.tr(vi: 'Vui lòng nhập số tiền', en: 'Please enter amount');
+      return 'Vui lòng nhập số tiền';
     }
     final parsed = double.tryParse(value.replaceAll(',', '').trim());
     if (parsed == null || parsed < 0) {
-      return LanguageService.tr(vi: 'Số tiền không hợp lệ', en: 'Invalid amount');
+      return 'Số tiền không hợp lệ';
     }
     return null;
   }
 
-  Future<void> _pickDate() async {
+  Future<void> _pickStartDate() async {
+    final now = DateTime.now();
+    final firstDate = DateTime(now.year, now.month, 1);
+    final lastDate = DateTime(now.year, now.month + 1, 0);
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      initialDate: _startDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
     );
     if (picked == null) return;
 
     setState(() {
-      _date = picked;
+      _startDate = _toCurrentMonthWithDay(picked.day);
+      if (_endDate.isBefore(_startDate)) {
+        _endDate = _startDate;
+      }
+    });
+  }
+
+  Future<void> _pickEndDate() async {
+    final now = DateTime.now();
+    final firstDate = DateTime(now.year, now.month, 1);
+    final lastDate = DateTime(now.year, now.month + 1, 0);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+    );
+    if (picked == null) return;
+
+    setState(() {
+      final selected = _toCurrentMonthWithDay(picked.day);
+      _endDate = selected.isBefore(_startDate) ? _startDate : selected;
     });
   }
 
@@ -232,19 +286,28 @@ class _BudgetFormState extends State<BudgetForm> {
           widget.initialBudget?.id ??
           DateTime.now().millisecondsSinceEpoch.toString(),
       title: _titleController.text.trim(),
-      category: _categoryController.text.trim(),
+      category: _selectedCategory,
+      walletName: _selectedWallet,
       limit: double.parse(_limitController.text.replaceAll(',', '').trim()),
-      spent: double.parse(_spentController.text.replaceAll(',', '').trim()),
-      date: _date,
-      color: CategoryHelper.colorFor(_categoryController.text.trim()),
-      icon: CategoryHelper.iconFor(_categoryController.text.trim()),
+      spent: widget.initialBudget?.spent ?? 0.0,
+      startDate: _startDate,
+      endDate: _endDate,
+      color: CategoryHelper.colorFor(_selectedCategory),
+      icon: CategoryHelper.iconFor(_selectedCategory),
     );
 
     Navigator.pop(context, budget);
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  DateTime _toCurrentMonthWithDay(int day) {
+    final now = DateTime.now();
+    final maxDay = DateTime(now.year, now.month + 1, 0).day;
+    final safeDay = day.clamp(1, maxDay);
+    return DateTime(now.year, now.month, safeDay);
+  }
+
+  String _formatDay(DateTime date) {
+    return 'Ngày ${date.day.toString().padLeft(2, '0')}';
   }
 }
 

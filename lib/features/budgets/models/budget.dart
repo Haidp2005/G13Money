@@ -4,9 +4,11 @@ class Budget {
   final String id;
   final String title;
   final String category;
+  final String walletName;
   final double limit;
   final double spent;
-  final DateTime date;
+  final DateTime startDate;
+  final DateTime endDate;
   final Color color;
   final IconData icon;
 
@@ -14,9 +16,11 @@ class Budget {
     required this.id,
     required this.title,
     required this.category,
+    required this.walletName,
     required this.limit,
     required this.spent,
-    required this.date,
+    required this.startDate,
+    required this.endDate,
     required this.color,
     required this.icon,
   });
@@ -36,9 +40,11 @@ class Budget {
     String? id,
     String? title,
     String? category,
+    String? walletName,
     double? limit,
     double? spent,
-    DateTime? date,
+    DateTime? startDate,
+    DateTime? endDate,
     Color? color,
     IconData? icon,
   }) {
@@ -46,9 +52,11 @@ class Budget {
       id: id ?? this.id,
       title: title ?? this.title,
       category: category ?? this.category,
+      walletName: walletName ?? this.walletName,
       limit: limit ?? this.limit,
       spent: spent ?? this.spent,
-      date: date ?? this.date,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
       color: color ?? this.color,
       icon: icon ?? this.icon,
     );

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-import '../../../core/models/app_notification.dart';
-import '../../../core/services/language_service.dart';
-import '../../../core/services/notification_service.dart';
-import '../../shared/widgets/category_helper.dart';
+import '../../transactions/data/transactions_repository.dart';
+import '../../transactions/models/transaction.dart';
 import '../models/budget.dart';
 import 'budget_form.dart';
 
@@ -21,58 +19,71 @@ class _BudgetsPageState extends State<BudgetsPage> {
       id: 'budget-food',
       title: 'Ăn uống tháng 4',
       category: 'Ăn uống',
+      walletName: 'Tiền mặt',
       limit: 3000000,
       spent: 1850000,
-      date: DateTime(2026, 4, 15),
-      color: CategoryHelper.colorFor('Ăn uống'),
-      icon: CategoryHelper.iconFor('Ăn uống'),
+      startDate: DateTime(2026, 4, 1),
+      endDate: DateTime(2026, 4, 30),
+      color: const Color(0xFFE07A5F),
+      icon: Icons.restaurant_outlined,
     ),
     Budget(
       id: 'budget-transport',
       title: 'Di chuyển',
       category: 'Di chuyển',
+      walletName: 'Vietcombank',
       limit: 1200000,
       spent: 620000,
-      date: DateTime(2026, 4, 15),
-      color: CategoryHelper.colorFor('Di chuyển'),
-      icon: CategoryHelper.iconFor('Di chuyển'),
+      startDate: DateTime(2026, 4, 1),
+      endDate: DateTime(2026, 4, 30),
+      color: const Color(0xFF3D5A80),
+      icon: Icons.directions_car_outlined,
     ),
     Budget(
       id: 'budget-shopping',
       title: 'Mua sắm cá nhân',
       category: 'Mua sắm',
+      walletName: 'Tất cả loại ví',
       limit: 2500000,
       spent: 2350000,
-      date: DateTime(2026, 4, 15),
-      color: CategoryHelper.colorFor('Mua sắm'),
-      icon: CategoryHelper.iconFor('Mua sắm'),
+      startDate: DateTime(2026, 4, 1),
+      endDate: DateTime(2026, 4, 30),
+      color: const Color(0xFF9B5DE5),
+      icon: Icons.shopping_bag_outlined,
     ),
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _emitBudgetAlerts();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final transactions = TransactionsRepository.instance.transactions;
+    final budgets = _budgets
+        .map(
+          (budget) =>
+              budget.copyWith(spent: _spentForBudget(budget, transactions)),
+        )
+        .toList();
+    final monthlyTransactions = _transactionsInMonth(
+      transactions,
+      DateTime.now(),
+    );
+
     final scheme = Theme.of(context).colorScheme;
     final viewportHeight = MediaQuery.sizeOf(context).height;
     final expandedHeaderHeight = (viewportHeight * 0.56).clamp(360.0, 520.0);
     final monthLabel = _monthLabel(DateTime.now());
-    final totalSpent = _budgets.fold<double>(
-      0,
-      (sum, budget) => sum + budget.spent,
-    );
-    final totalBudgetLimit = _budgets.fold<double>(
+    final totalSpent = monthlyTransactions
+        .where((item) => !item.isIncome)
+        .fold<double>(0, (sum, item) => sum + item.amount);
+    final totalBudgetLimit = budgets.fold<double>(
       0,
       (sum, budget) => sum + budget.limit,
     );
     final remainingBudgetLimit = totalBudgetLimit - totalSpent;
     final isLimitCritical =
         totalBudgetLimit > 0 && (remainingBudgetLimit / totalBudgetLimit) < 0.1;
-    final totalIncome = 8500000.0;
+    final totalIncome = monthlyTransactions
+        .where((item) => item.isIncome)
+        .fold<double>(0, (sum, item) => sum + item.amount);
     final daysRemaining = _daysRemainingInCurrentMonth();
 
     return Scaffold(
@@ -80,7 +91,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openBudgetForm(),
         icon: const Icon(Icons.add),
-        label: Text(LanguageService.tr(vi: 'Thêm ngân sách', en: 'Add budget')),
+        label: const Text('Thêm ngân sách'),
       ),
       body: CustomScrollView(
         slivers: [
@@ -110,7 +121,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    LanguageService.tr(vi: 'Danh sách ngân sách', en: 'Budget list'),
+                    'Danh sách ngân sách',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -127,10 +138,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      LanguageService.tr(
-                        vi: '${_budgets.length} mục',
-                        en: '${_budgets.length} items',
-                      ),
+                      '${_budgets.length} mục',
                       style: TextStyle(
                         color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
@@ -151,7 +159,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
                   )
                 : SliverList.separated(
                     itemBuilder: (context, index) {
-                      final budget = _budgets[index];
+                      final budget = budgets[index];
                       return _BudgetCard(
                         budget: budget,
                         onEdit: () => _openBudgetForm(budget),
@@ -159,7 +167,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
                       );
                     },
                     separatorBuilder: (_, index) => const SizedBox(height: 12),
-                    itemCount: _budgets.length,
+                    itemCount: budgets.length,
                   ),
           ),
         ],
@@ -191,24 +199,18 @@ class _BudgetsPageState extends State<BudgetsPage> {
         _budgets.insert(0, result);
       }
     });
-    _emitBudgetAlerts();
   }
 
   void _deleteBudget(Budget budget) {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(LanguageService.tr(vi: 'Xóa ngân sách', en: 'Delete budget')),
-        content: Text(
-          LanguageService.tr(
-            vi: 'Xóa "${budget.title}" khỏi danh sách ngân sách?',
-            en: 'Remove "${budget.title}" from budget list?',
-          ),
-        ),
+        title: const Text('Xóa ngân sách'),
+        content: Text('Xóa "${budget.title}" khỏi danh sách ngân sách?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text(LanguageService.tr(vi: 'Huỷ', en: 'Cancel')),
+            child: const Text('Huỷ'),
           ),
           FilledButton(
             onPressed: () {
@@ -216,60 +218,48 @@ class _BudgetsPageState extends State<BudgetsPage> {
               setState(
                 () => _budgets.removeWhere((item) => item.id == budget.id),
               );
-              _emitBudgetAlerts();
             },
-            child: Text(LanguageService.tr(vi: 'Xóa', en: 'Delete')),
+            child: const Text('Xóa'),
           ),
         ],
       ),
     );
   }
 
-  void _emitBudgetAlerts() {
-    final prefs = NotificationService.preferences.value;
-    if (!prefs.budgetAlerts) return;
+  double _spentForBudget(Budget budget, List<MoneyTransaction> transactions) {
+    final normalizedCategory = budget.category.trim().toLowerCase();
+    final normalizedWallet = budget.walletName.trim().toLowerCase();
+    final useAllWallets =
+        normalizedWallet == 'tất cả ví' || normalizedWallet == 'tất cả loại ví';
 
-    for (final budget in _budgets) {
-      final ratio = budget.limit <= 0 ? 0.0 : budget.spent / budget.limit;
+    return transactions
+        .where((item) => !item.isIncome)
+        .where(
+          (item) => item.category.trim().toLowerCase() == normalizedCategory,
+        )
+        .where(
+          (item) =>
+              !item.date.isBefore(budget.startDate) &&
+              !item.date.isAfter(budget.endDate),
+        )
+        .where(
+          (item) =>
+              useAllWallets ||
+              item.walletName.trim().toLowerCase() == normalizedWallet,
+        )
+        .fold<double>(0, (sum, item) => sum + item.amount);
+  }
 
-      if (ratio >= 1) {
-        NotificationService.addUnique(
-          uniqueKey: 'budget:${budget.id}:100',
-          notification: AppNotification(
-            id: 'ntf-${DateTime.now().microsecondsSinceEpoch}-${budget.id}-100',
-            title: LanguageService.tr(
-              vi: 'Cảnh báo vượt ngân sách',
-              en: 'Budget exceeded',
-            ),
-            message: LanguageService.tr(
-              vi: '"${budget.title}" đã vượt hạn mức.',
-              en: '"${budget.title}" has exceeded its limit.',
-            ),
-            createdAt: DateTime.now(),
-            isRead: false,
-            type: AppNotificationType.budgetExceeded,
-          ),
-        );
-      } else if (ratio >= 0.8) {
-        NotificationService.addUnique(
-          uniqueKey: 'budget:${budget.id}:80',
-          notification: AppNotification(
-            id: 'ntf-${DateTime.now().microsecondsSinceEpoch}-${budget.id}-80',
-            title: LanguageService.tr(
-              vi: 'Ngân sách sắp chạm hạn mức',
-              en: 'Budget nearly reached',
-            ),
-            message: LanguageService.tr(
-              vi: '"${budget.title}" đã dùng ${budget.usageLabel}.',
-              en: '"${budget.title}" has used ${budget.usageLabel}.',
-            ),
-            createdAt: DateTime.now(),
-            isRead: false,
-            type: AppNotificationType.budgetWarning,
-          ),
-        );
-      }
-    }
+  List<MoneyTransaction> _transactionsInMonth(
+    List<MoneyTransaction> transactions,
+    DateTime month,
+  ) {
+    return transactions
+        .where(
+          (item) =>
+              item.date.year == month.year && item.date.month == month.month,
+        )
+        .toList();
   }
 }
 
@@ -316,8 +306,8 @@ class _Header extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    LanguageService.tr(vi: 'Ngân sách', en: 'Budgets'),
+                  const Text(
+                    'Ngân sách',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 32,
@@ -346,10 +336,7 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                LanguageService.tr(
-                  vi: 'Theo dõi hạn mức theo từng danh mục trong tháng hiện tại.',
-                  en: 'Track spending limits by category for this month.',
-                ),
+                'Theo dõi hạn mức theo từng danh mục trong tháng hiện tại.',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.86),
                   fontSize: 13,
@@ -374,21 +361,21 @@ class _Header extends StatelessWidget {
                       children: [
                         Expanded(
                           child: _SummaryTile(
-                            label: LanguageService.tr(vi: 'Tổng thu', en: 'Income'),
+                            label: 'Tổng thu',
                             value: _formatMoney(totalIncome),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _SummaryTile(
-                            label: LanguageService.tr(vi: 'Tổng chi', en: 'Spent'),
+                            label: 'Tổng chi',
                             value: _formatMoney(totalSpent),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: _SummaryTile(
-                            label: LanguageService.tr(vi: 'Ngày còn lại', en: 'Days left'),
+                            label: 'Ngày còn lại',
                             value: '$daysRemaining',
                           ),
                         ),
@@ -432,10 +419,7 @@ class _LimitSummaryCard extends StatelessWidget {
         ],
       ),
       child: Text(
-        LanguageService.tr(
-          vi: 'Hạn mức có thể chi: ${_formatMoney(remainingBudgetLimit)}',
-          en: 'Available budget: ${_formatMoney(remainingBudgetLimit)}',
-        ),
+        'Hạn mức có thể chi: ${_formatMoney(remainingBudgetLimit)}',
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w700,
@@ -704,15 +688,9 @@ class _BudgetCard extends StatelessWidget {
                       onDelete();
                     }
                   },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text(LanguageService.tr(vi: 'Chỉnh sửa', en: 'Edit')),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text(LanguageService.tr(vi: 'Xóa', en: 'Delete')),
-                    ),
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Chỉnh sửa')),
+                    PopupMenuItem(value: 'delete', child: Text('Xóa')),
                   ],
                 ),
               ],
@@ -722,7 +700,7 @@ class _BudgetCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _StatItem(
-                    label: LanguageService.tr(vi: 'Đã chi', en: 'Spent'),
+                    label: 'Đã chi',
                     value: _formatMoney(budget.spent),
                     highlight: budget.isOverBudget,
                   ),
@@ -730,7 +708,7 @@ class _BudgetCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _StatItem(
-                    label: LanguageService.tr(vi: 'Hạn mức', en: 'Limit'),
+                    label: 'Hạn mức',
                     value: _formatMoney(budget.limit),
                   ),
                 ),
@@ -751,10 +729,7 @@ class _BudgetCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  LanguageService.tr(
-                    vi: '${budget.usageLabel} đã dùng',
-                    en: '${budget.usageLabel} used',
-                  ),
+                  '${budget.usageLabel} đã dùng',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: progressColor,
@@ -762,21 +737,15 @@ class _BudgetCard extends StatelessWidget {
                 ),
                 Text(
                   budget.isOverBudget
-                      ? LanguageService.tr(
-                          vi: 'Vượt ${_formatMoney(budget.spent - budget.limit)}',
-                          en: 'Exceeded ${_formatMoney(budget.spent - budget.limit)}',
-                        )
-                      : LanguageService.tr(
-                          vi: 'Còn lại ${_formatMoney(budget.remaining)}',
-                          en: 'Remaining ${_formatMoney(budget.remaining)}',
-                        ),
+                      ? 'Vượt ${_formatMoney(budget.spent - budget.limit)}'
+                      : 'Còn lại ${_formatMoney(budget.remaining)}',
                   style: TextStyle(color: scheme.outline, fontSize: 12),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Text(
-              _formatDate(budget.date),
+              '${_formatDate(budget.startDate)} - ${_formatDate(budget.endDate)}',
               style: TextStyle(color: scheme.outline, fontSize: 12),
             ),
           ],
@@ -853,17 +822,14 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              LanguageService.tr(vi: 'Chưa có ngân sách nào', en: 'No budgets yet'),
+            const Text(
+              'Chưa có ngân sách nào',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
-              LanguageService.tr(
-                vi: 'Tạo ngân sách đầu tiên để theo dõi hạn mức chi tiêu theo danh mục.',
-                en: 'Create your first budget to track category spending limits.',
-              ),
+              'Tạo ngân sách đầu tiên để theo dõi hạn mức chi tiêu theo danh mục.',
               textAlign: TextAlign.center,
               style: TextStyle(color: scheme.outline),
             ),
@@ -871,7 +837,7 @@ class _EmptyState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.add),
-              label: Text(LanguageService.tr(vi: 'Tạo ngân sách', en: 'Create budget')),
+              label: const Text('Tạo ngân sách'),
             ),
           ],
         ),

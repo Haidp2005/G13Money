@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/services/language_service.dart';
+import '../data/transactions_repository.dart';
+import '../models/transaction.dart';
 import '../../shared/widgets/category_helper.dart';
 
 class TransactionsPage extends StatefulWidget {
@@ -29,6 +30,11 @@ class _TransactionsPageState extends State<TransactionsPage>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final transactions = TransactionsRepository.instance.transactions;
+    final balance = transactions.fold<int>(
+      0,
+      (sum, tx) => sum + (tx.isIncome ? tx.amount.round() : -tx.amount.round()),
+    );
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,
@@ -38,7 +44,7 @@ class _TransactionsPageState extends State<TransactionsPage>
             // ── Top Bar ──
             _buildTopBar(scheme),
             // ── Balance ──
-            _buildBalanceSection(scheme),
+            _buildBalanceSection(scheme, balance),
             // ── Tab Bar ──
             _buildTabBar(scheme),
             // ── Content ──
@@ -47,9 +53,21 @@ class _TransactionsPageState extends State<TransactionsPage>
                 controller: _tabController,
                 physics: const BouncingScrollPhysics(),
                 children: [
-                  _buildTabContent(period: 'lastWeek', scheme: scheme),
-                  _buildTabContent(period: 'thisWeek', scheme: scheme),
-                  _buildTabContent(period: 'future', scheme: scheme),
+                  _buildTabContent(
+                    period: 'lastWeek',
+                    scheme: scheme,
+                    transactions: transactions,
+                  ),
+                  _buildTabContent(
+                    period: 'thisWeek',
+                    scheme: scheme,
+                    transactions: transactions,
+                  ),
+                  _buildTabContent(
+                    period: 'future',
+                    scheme: scheme,
+                    transactions: transactions,
+                  ),
                 ],
               ),
             ),
@@ -91,7 +109,7 @@ class _TransactionsPageState extends State<TransactionsPage>
                 const Text('🌐', style: TextStyle(fontSize: 16)),
                 const SizedBox(width: 8),
                 Text(
-                  LanguageService.tr(vi: 'Tổng cộng', en: 'Total'),
+                  'Tổng cộng',
                   style: TextStyle(
                     color: scheme.onSurface,
                     fontSize: 14,
@@ -140,13 +158,13 @@ class _TransactionsPageState extends State<TransactionsPage>
   }
 
   // ── Balance Section ──
-  Widget _buildBalanceSection(ColorScheme scheme) {
+  Widget _buildBalanceSection(ColorScheme scheme, int balance) {
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 16),
       child: Column(
         children: [
           Text(
-            LanguageService.tr(vi: 'Số dư', en: 'Balance'),
+            'Số dư',
             style: TextStyle(
               color: scheme.outline,
               fontSize: 13,
@@ -155,7 +173,7 @@ class _TransactionsPageState extends State<TransactionsPage>
           ),
           const SizedBox(height: 4),
           Text(
-            '1,045,000 đ',
+            '${_formatNumber(balance)} đ',
             style: TextStyle(
               color: scheme.onSurface,
               fontSize: 28,
@@ -200,18 +218,22 @@ class _TransactionsPageState extends State<TransactionsPage>
         dividerColor: Colors.transparent,
         padding: EdgeInsets.zero,
         labelPadding: const EdgeInsets.symmetric(vertical: 4),
-        tabs: [
-          Tab(text: LanguageService.tr(vi: 'TUẦN TRƯỚC', en: 'LAST WEEK')),
-          Tab(text: LanguageService.tr(vi: 'TUẦN NÀY', en: 'THIS WEEK')),
-          Tab(text: LanguageService.tr(vi: 'TƯƠNG LAI', en: 'FUTURE')),
+        tabs: const [
+          Tab(text: 'TUẦN TRƯỚC'),
+          Tab(text: 'TUẦN NÀY'),
+          Tab(text: 'TƯƠNG LAI'),
         ],
       ),
     );
   }
 
   // ── Tab Content ──
-  Widget _buildTabContent({required String period, required ColorScheme scheme}) {
-    final periodData = _getPeriodData(period);
+  Widget _buildTabContent({
+    required String period,
+    required ColorScheme scheme,
+    required List<MoneyTransaction> transactions,
+  }) {
+    final periodData = _getPeriodData(period, transactions);
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -223,11 +245,17 @@ class _TransactionsPageState extends State<TransactionsPage>
             scheme: scheme,
             child: Column(
               children: [
-                _summaryRow(LanguageService.tr(vi: 'Tiền vào', en: 'Income'), _formatNumber(periodData.income),
-                    const Color(0xFF2DCC5A)),
+                _summaryRow(
+                  'Tiền vào',
+                  _formatNumber(periodData.income),
+                  const Color(0xFF2DCC5A),
+                ),
                 const SizedBox(height: 12),
-                _summaryRow(LanguageService.tr(vi: 'Tiền ra', en: 'Expense'), _formatNumber(periodData.expense),
-                    const Color(0xFFFF6B6B)),
+                _summaryRow(
+                  'Tiền ra',
+                  _formatNumber(periodData.expense),
+                  const Color(0xFFFF6B6B),
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Divider(
@@ -266,10 +294,7 @@ class _TransactionsPageState extends State<TransactionsPage>
                 backgroundColor: scheme.primary.withValues(alpha: 0.04),
               ),
               child: Text(
-                LanguageService.tr(
-                  vi: 'Xem báo cáo cho giai đoạn này',
-                  en: 'View report for this period',
-                ),
+                'Xem báo cáo cho giai đoạn này',
                 style: TextStyle(
                   color: scheme.primary,
                   fontSize: 14,
@@ -297,8 +322,9 @@ class _TransactionsPageState extends State<TransactionsPage>
                           _buildTransactionTile(entry.value, scheme),
                           if (!isLast)
                             Divider(
-                              color:
-                                  scheme.outlineVariant.withValues(alpha: 0.3),
+                              color: scheme.outlineVariant.withValues(
+                                alpha: 0.3,
+                              ),
                               indent: 70,
                               height: 1,
                             ),
@@ -366,10 +392,7 @@ class _TransactionsPageState extends State<TransactionsPage>
             ),
             Text(
               group.monthYear,
-              style: TextStyle(
-                color: scheme.outline,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: scheme.outline, fontSize: 12),
             ),
           ],
         ),
@@ -387,8 +410,9 @@ class _TransactionsPageState extends State<TransactionsPage>
   }
 
   Widget _buildTransactionTile(_TransactionItem item, ColorScheme scheme) {
-    final amountColor =
-        item.isIncome ? const Color(0xFF2DCC5A) : const Color(0xFFFF6B6B);
+    final amountColor = item.isIncome
+        ? const Color(0xFF2DCC5A)
+        : const Color(0xFFFF6B6B);
 
     return Padding(
       padding: const EdgeInsets.all(14),
@@ -420,16 +444,6 @@ class _TransactionsPageState extends State<TransactionsPage>
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (item.note != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    item.note!,
-                    style: TextStyle(
-                      color: scheme.outline,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -489,69 +503,102 @@ class _TransactionsPageState extends State<TransactionsPage>
     return isNegative ? '-${buffer.toString()}' : buffer.toString();
   }
 
-  _PeriodData _getPeriodData(String period) {
-    if (period == 'thisWeek') {
-      return _PeriodData(
-        income: 500000,
-        expense: 0,
-        transactionGroups: [
-          _TransactionGroup(
-            dayNumber: '31',
-            dayName: LanguageService.tr(vi: 'Thứ Ba', en: 'Tuesday'),
-            monthYear: LanguageService.tr(vi: 'tháng 3 2026', en: 'March 2026'),
-            total: 500000,
-            transactions: [
-              _TransactionItem(
-                title: LanguageService.tr(vi: 'Lương', en: 'Salary'),
-                note: LanguageService.tr(vi: 'Lương về', en: 'Salary received'),
-                amount: 500000,
-                isIncome: true,
-                icon: CategoryHelper.iconFor('Lương'),
-                categoryColor: CategoryHelper.colorFor('Lương'),
-              ),
-            ],
-          ),
-        ],
-      );
-    } else if (period == 'lastWeek') {
-      return _PeriodData(
-        income: 1000000,
-        expense: 150000,
-        transactionGroups: [
-          _TransactionGroup(
-            dayNumber: '25',
-            dayName: LanguageService.tr(vi: 'Thứ Tư', en: 'Wednesday'),
-            monthYear: LanguageService.tr(vi: 'tháng 3 2026', en: 'March 2026'),
-            total: 850000,
-            transactions: [
-              _TransactionItem(
-                title: LanguageService.tr(vi: 'Tiền thưởng', en: 'Bonus'),
-                amount: 1000000,
-                isIncome: true,
-                icon: CategoryHelper.iconFor('Thưởng'),
-                categoryColor: CategoryHelper.colorFor('Thưởng'),
-              ),
-              _TransactionItem(
-                title: LanguageService.tr(vi: 'Ăn uống', en: 'Food & drinks'),
-                note: LanguageService.tr(vi: 'Cơm trưa', en: 'Lunch'),
-                amount: -50000,
-                isIncome: false,
-                icon: CategoryHelper.iconFor('Ăn uống'),
-                categoryColor: CategoryHelper.colorFor('Ăn uống'),
-              ),
-              _TransactionItem(
-                title: LanguageService.tr(vi: 'Mua sắm', en: 'Shopping'),
-                amount: -100000,
-                isIncome: false,
-                icon: CategoryHelper.iconFor('Mua sắm'),
-                categoryColor: CategoryHelper.colorFor('Mua sắm'),
-              ),
-            ],
-          ),
-        ],
-      );
+  _PeriodData _getPeriodData(
+    String period,
+    List<MoneyTransaction> transactions,
+  ) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final startOfThisWeek = _startOfWeek(today);
+    final endOfThisWeek = startOfThisWeek.add(const Duration(days: 6));
+    final startOfLastWeek = startOfThisWeek.subtract(const Duration(days: 7));
+    final endOfLastWeek = startOfThisWeek.subtract(const Duration(days: 1));
+
+    bool inPeriod(MoneyTransaction tx) {
+      final date = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      if (period == 'thisWeek') {
+        return !date.isBefore(startOfThisWeek) && !date.isAfter(endOfThisWeek);
+      }
+      if (period == 'lastWeek') {
+        return !date.isBefore(startOfLastWeek) && !date.isAfter(endOfLastWeek);
+      }
+      return date.isAfter(endOfThisWeek);
     }
-    return const _PeriodData(income: 0, expense: 0, transactionGroups: []);
+
+    final periodTransactions = transactions.where(inPeriod).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+
+    final income = periodTransactions
+        .where((tx) => tx.isIncome)
+        .fold<int>(0, (sum, tx) => sum + tx.amount.round());
+    final expense = periodTransactions
+        .where((tx) => !tx.isIncome)
+        .fold<int>(0, (sum, tx) => sum + tx.amount.round());
+
+    final grouped = <DateTime, List<MoneyTransaction>>{};
+    for (final tx in periodTransactions) {
+      final day = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      grouped.putIfAbsent(day, () => <MoneyTransaction>[]).add(tx);
+    }
+
+    final sortedDays = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+    final groups = sortedDays.map((day) {
+      final entries = grouped[day]!;
+      final total = entries.fold<int>(
+        0,
+        (sum, tx) =>
+            sum + (tx.isIncome ? tx.amount.round() : -tx.amount.round()),
+      );
+      final items = entries
+          .map(
+            (tx) => _TransactionItem(
+              title: tx.title,
+              amount: tx.isIncome ? tx.amount.round() : -tx.amount.round(),
+              isIncome: tx.isIncome,
+              icon: CategoryHelper.iconFor(tx.category),
+              categoryColor: CategoryHelper.colorFor(tx.category),
+            ),
+          )
+          .toList();
+
+      return _TransactionGroup(
+        dayNumber: day.day.toString().padLeft(2, '0'),
+        dayName: _weekdayLabel(day.weekday),
+        monthYear: 'tháng ${day.month} ${day.year}',
+        total: total,
+        transactions: items,
+      );
+    }).toList();
+
+    return _PeriodData(
+      income: income,
+      expense: expense,
+      transactionGroups: groups,
+    );
+  }
+
+  DateTime _startOfWeek(DateTime date) {
+    final difference = date.weekday - DateTime.monday;
+    return date.subtract(Duration(days: difference));
+  }
+
+  String _weekdayLabel(int weekday) {
+    switch (weekday) {
+      case DateTime.monday:
+        return 'Thứ Hai';
+      case DateTime.tuesday:
+        return 'Thứ Ba';
+      case DateTime.wednesday:
+        return 'Thứ Tư';
+      case DateTime.thursday:
+        return 'Thứ Năm';
+      case DateTime.friday:
+        return 'Thứ Sáu';
+      case DateTime.saturday:
+        return 'Thứ Bảy';
+      default:
+        return 'Chủ nhật';
+    }
   }
 }
 
@@ -587,7 +634,6 @@ class _TransactionGroup {
 class _TransactionItem {
   const _TransactionItem({
     required this.title,
-    this.note,
     required this.amount,
     required this.isIncome,
     required this.icon,
@@ -595,7 +641,6 @@ class _TransactionItem {
   });
 
   final String title;
-  final String? note;
   final int amount;
   final bool isIncome;
   final IconData icon;
