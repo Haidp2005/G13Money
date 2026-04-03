@@ -15,8 +15,19 @@ class BudgetForm extends StatefulWidget {
 class _BudgetFormState extends State<BudgetForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
-  late final TextEditingController _categoryController;
   late final TextEditingController _limitController;
+
+  String _selectedCategory = 'Ăn uống';
+  final List<String> _categories = [
+    'Ăn uống',
+    'Di chuyển',
+    'Mua sắm',
+    'Nhà ở',
+    'Giải trí',
+    'Sức khỏe',
+    'Giáo dục',
+    'Hóa đơn',
+  ];
 
   String _selectedWallet = 'Tất cả ví';
   final List<String> _wallets = [
@@ -36,10 +47,14 @@ class _BudgetFormState extends State<BudgetForm> {
     super.initState();
     final budget = widget.initialBudget;
     _titleController = TextEditingController(text: budget?.title ?? '');
-    _categoryController = TextEditingController(text: budget?.category ?? '');
     _limitController = TextEditingController(
       text: budget == null ? '' : budget.limit.toStringAsFixed(0),
     );
+
+    if (budget != null && !_categories.contains(budget.category)) {
+      _categories.add(budget.category);
+    }
+    _selectedCategory = budget?.category ?? _categories.first;
 
     if (budget != null && !_wallets.contains(budget.walletName)) {
       _wallets.add(budget.walletName);
@@ -47,14 +62,19 @@ class _BudgetFormState extends State<BudgetForm> {
     _selectedWallet = budget?.walletName ?? _wallets.first;
 
     final now = DateTime.now();
-    _startDate = budget?.startDate ?? DateTime(now.year, now.month, 1);
-    _endDate = budget?.endDate ?? DateTime(now.year, now.month + 1, 0);
+    _startDate = _toCurrentMonthWithDay(budget?.startDate.day ?? 1);
+    _endDate = _toCurrentMonthWithDay(
+      budget?.endDate.day ?? DateTime(now.year, now.month + 1, 0).day,
+    );
+
+    if (_endDate.isBefore(_startDate)) {
+      _endDate = _startDate;
+    }
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _categoryController.dispose();
     _limitController.dispose();
     super.dispose();
   }
@@ -118,23 +138,32 @@ class _BudgetFormState extends State<BudgetForm> {
                   },
                 ),
                 const SizedBox(height: 14),
-                TextFormField(
-                  controller: _categoryController,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Danh mục',
-                    hintText: 'Ví dụ: Ăn uống, Di chuyển',
-                  ),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCategory,
+                  decoration: const InputDecoration(labelText: 'Danh mục'),
+                  items: _categories.map((category) {
+                    return DropdownMenuItem(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedCategory = value;
+                      });
+                    }
+                  },
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Vui lòng nhập danh mục';
+                      return 'Vui lòng chọn danh mục';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
-                  value: _selectedWallet,
+                  initialValue: _selectedWallet,
                   decoration: const InputDecoration(
                     labelText: 'Áp dụng cho ví/tài khoản',
                   ),
@@ -166,7 +195,7 @@ class _BudgetFormState extends State<BudgetForm> {
                     Expanded(
                       child: _DateField(
                         label: 'Từ ngày',
-                        value: _formatDate(_startDate),
+                        value: _formatDay(_startDate),
                         onTap: () => _pickStartDate(),
                       ),
                     ),
@@ -174,7 +203,7 @@ class _BudgetFormState extends State<BudgetForm> {
                     Expanded(
                       child: _DateField(
                         label: 'Đến ngày',
-                        value: _formatDate(_endDate),
+                        value: _formatDay(_endDate),
                         onTap: () => _pickEndDate(),
                       ),
                     ),
@@ -211,16 +240,19 @@ class _BudgetFormState extends State<BudgetForm> {
   }
 
   Future<void> _pickStartDate() async {
+    final now = DateTime.now();
+    final firstDate = DateTime(now.year, now.month, 1);
+    final lastDate = DateTime(now.year, now.month + 1, 0);
     final picked = await showDatePicker(
       context: context,
       initialDate: _startDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      firstDate: firstDate,
+      lastDate: lastDate,
     );
     if (picked == null) return;
 
     setState(() {
-      _startDate = picked;
+      _startDate = _toCurrentMonthWithDay(picked.day);
       if (_endDate.isBefore(_startDate)) {
         _endDate = _startDate;
       }
@@ -228,16 +260,20 @@ class _BudgetFormState extends State<BudgetForm> {
   }
 
   Future<void> _pickEndDate() async {
+    final now = DateTime.now();
+    final firstDate = DateTime(now.year, now.month, 1);
+    final lastDate = DateTime(now.year, now.month + 1, 0);
     final picked = await showDatePicker(
       context: context,
-      initialDate: _endDate.isBefore(_startDate) ? _startDate : _endDate,
-      firstDate: _startDate,
-      lastDate: DateTime(2100),
+      initialDate: _endDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
     );
     if (picked == null) return;
 
     setState(() {
-      _endDate = picked;
+      final selected = _toCurrentMonthWithDay(picked.day);
+      _endDate = selected.isBefore(_startDate) ? _startDate : selected;
     });
   }
 
@@ -250,20 +286,28 @@ class _BudgetFormState extends State<BudgetForm> {
           widget.initialBudget?.id ??
           DateTime.now().millisecondsSinceEpoch.toString(),
       title: _titleController.text.trim(),
-      category: _categoryController.text.trim(),
+      category: _selectedCategory,
       walletName: _selectedWallet,
       limit: double.parse(_limitController.text.replaceAll(',', '').trim()),
-      spent: double.parse(_spentController.text.replaceAll(',', '').trim()),
-      date: _date,
-      color: _budgetColorForCategory(_categoryController.text.trim()),
-      icon: _budgetIconForCategory(_categoryController.text.trim()),
+      spent: widget.initialBudget?.spent ?? 0.0,
+      startDate: _startDate,
+      endDate: _endDate,
+      color: CategoryHelper.colorFor(_selectedCategory),
+      icon: CategoryHelper.iconFor(_selectedCategory),
     );
 
     Navigator.pop(context, budget);
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  DateTime _toCurrentMonthWithDay(int day) {
+    final now = DateTime.now();
+    final maxDay = DateTime(now.year, now.month + 1, 0).day;
+    final safeDay = day.clamp(1, maxDay);
+    return DateTime(now.year, now.month, safeDay);
+  }
+
+  String _formatDay(DateTime date) {
+    return 'Ngày ${date.day.toString().padLeft(2, '0')}';
   }
 }
 

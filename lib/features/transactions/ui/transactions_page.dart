@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/transactions_repository.dart';
 import '../../shared/widgets/category_helper.dart';
 
 class TransactionsPage extends StatefulWidget {
@@ -28,47 +29,22 @@ class _TransactionsPageState extends State<TransactionsPage>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final transactions = TransactionsRepository.instance.transactions;
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ── Top Bar ──
-            _buildTopBar(scheme),
-            // ── Balance ──
-            _buildBalanceSection(scheme),
-            // ── Tab Bar ──
-            _buildTabBar(scheme),
-            // ── Content ──
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  _buildTabContent(period: 'lastWeek', scheme: scheme),
-                  _buildTabContent(period: 'thisWeek', scheme: scheme),
-                  _buildTabContent(period: 'future', scheme: scheme),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+      appBar: AppBar(title: const Text('Giao dịch'), centerTitle: true),
+      body: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+        itemCount: _mockTransactions.length,
+        separatorBuilder: (_, index) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          final item = _mockTransactions[index];
+          final amountColor = item.isIncome
+              ? const Color(0xFF1F9D55)
+              : scheme.error;
 
-  // ── Top Bar ──
-  Widget _buildTopBar(ColorScheme scheme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          _headerIconButton(Icons.help_outline_rounded, scheme),
-          const Spacer(),
-          // Wallet selector chip
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          return Container(
             decoration: BoxDecoration(
               color: scheme.surface,
               borderRadius: BorderRadius.circular(20),
@@ -84,188 +60,18 @@ class _TransactionsPageState extends State<TransactionsPage>
                 ),
               ],
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('🌐', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 8),
-                Text(
-                  'Tổng cộng',
-                  style: TextStyle(
-                    color: scheme.onSurface,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: scheme.outline,
-                  size: 18,
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          _headerIconButton(Icons.search_rounded, scheme),
-          const SizedBox(width: 8),
-          _headerIconButton(Icons.more_vert_rounded, scheme),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerIconButton(IconData icon, ColorScheme scheme) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(13),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Icon(icon, color: scheme.onSurfaceVariant, size: 22),
-    );
-  }
-
-  // ── Balance Section ──
-  Widget _buildBalanceSection(ColorScheme scheme) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 16),
-      child: Column(
-        children: [
-          Text(
-            'Số dư',
-            style: TextStyle(
-              color: scheme.outline,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '1,045,000 đ',
-            style: TextStyle(
-              color: scheme.onSurface,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Tab Bar ──
-  Widget _buildTabBar(ColorScheme scheme) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 0.4),
-            width: 1,
-          ),
-        ),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        labelColor: scheme.primary,
-        unselectedLabelColor: scheme.outline,
-        labelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.3,
-        ),
-        indicatorColor: scheme.primary,
-        indicatorWeight: 3,
-        indicatorSize: TabBarIndicatorSize.label,
-        dividerColor: Colors.transparent,
-        padding: EdgeInsets.zero,
-        labelPadding: const EdgeInsets.symmetric(vertical: 4),
-        tabs: const [
-          Tab(text: 'TUẦN TRƯỚC'),
-          Tab(text: 'TUẦN NÀY'),
-          Tab(text: 'TƯƠNG LAI'),
-        ],
-      ),
-    );
-  }
-
-  // ── Tab Content ──
-  Widget _buildTabContent({required String period, required ColorScheme scheme}) {
-    final periodData = _getPeriodData(period);
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-      child: Column(
-        children: [
-          // ── Summary Card ──
-          _sectionCard(
-            scheme: scheme,
-            child: Column(
-              children: [
-                _summaryRow('Tiền vào', _formatNumber(periodData.income),
-                    const Color(0xFF2DCC5A)),
-                const SizedBox(height: 12),
-                _summaryRow('Tiền ra', _formatNumber(periodData.expense),
-                    const Color(0xFFFF6B6B)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(
-                    color: scheme.outlineVariant.withValues(alpha: 0.4),
-                    height: 1,
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      _formatNumber(periodData.income - periodData.expense),
-                      style: TextStyle(
-                        color: scheme.onSurface,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // ── Report Button ──
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: scheme.primary, width: 1.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                backgroundColor: scheme.primary.withValues(alpha: 0.04),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: item.color.withValues(alpha: 0.15),
+                child: Icon(item.icon, color: item.color),
               ),
-              child: Text(
-                'Xem báo cáo cho giai đoạn này',
+              title: Text(
+                item.title,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(item.date),
+              trailing: Text(
+                item.amount,
                 style: TextStyle(
                   color: scheme.primary,
                   fontSize: 14,
@@ -583,17 +389,44 @@ class _TransactionGroup {
 class _TransactionItem {
   const _TransactionItem({
     required this.title,
-    this.note,
+    required this.date,
     required this.amount,
     required this.isIncome,
     required this.icon,
-    required this.categoryColor,
+    required this.color,
   });
 
   final String title;
-  final String? note;
-  final int amount;
+  final String date;
+  final String amount;
   final bool isIncome;
   final IconData icon;
-  final Color categoryColor;
+  final Color color;
 }
+
+final List<_TransactionItem> _mockTransactions = [
+  _TransactionItem(
+    title: 'Lương tháng 4',
+    date: '01/04/2026',
+    amount: '+12,000,000 đ',
+    isIncome: true,
+    icon: CategoryHelper.iconFor('Lương'),
+    color: CategoryHelper.colorFor('Lương'),
+  ),
+  _TransactionItem(
+    title: 'Ăn uống',
+    date: '02/04/2026',
+    amount: '-120,000 đ',
+    isIncome: false,
+    icon: CategoryHelper.iconFor('Ăn uống'),
+    color: CategoryHelper.colorFor('Ăn uống'),
+  ),
+  _TransactionItem(
+    title: 'Di chuyển',
+    date: '02/04/2026',
+    amount: '-60,000 đ',
+    isIncome: false,
+    icon: CategoryHelper.iconFor('Di chuyển'),
+    color: CategoryHelper.colorFor('Di chuyển'),
+  ),
+];
