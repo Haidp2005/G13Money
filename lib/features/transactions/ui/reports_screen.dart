@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/widgets/category_helper.dart';
 import '../../accounts/data/accounts_repository.dart';
 import '../../accounts/data/categories_repository.dart';
 import '../models/transaction.dart';
 import '../data/transactions_repository.dart';
+import '../state/reports_state.dart';
 
-class ReportsScreen extends StatefulWidget {
+class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
   @override
-  State<ReportsScreen> createState() => _ReportsScreenState();
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> {
-  int _touchedIncomeIndex = -1;
-  int _touchedExpenseIndex = -1;
-
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   void initState() {
     super.initState();
@@ -29,12 +28,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
       AccountsRepository.instance.loadAccounts(forceRefresh: true),
       CategoriesRepository.instance.loadCategories(forceRefresh: true),
     ]);
-    if (!mounted) return;
-    setState(() {});
+    ref.read(reportsReloadTickProvider.notifier).state++;
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(reportsReloadTickProvider);
+    final touchedIncomeIndex = ref.watch(reportsTouchedIncomeIndexProvider);
+    final touchedExpenseIndex = ref.watch(reportsTouchedExpenseIndexProvider);
     final scheme = Theme.of(context).colorScheme;
     
     // Fetch data
@@ -92,11 +93,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       amount: totalIncome,
                       isIncome: true,
                       transactions: incomeTx,
-                      touchedIndex: _touchedIncomeIndex,
+                      touchedIndex: touchedIncomeIndex,
                       onTouched: (idx) {
-                        setState(() {
-                          _touchedIncomeIndex = idx;
-                        });
+                        ref.read(reportsTouchedIncomeIndexProvider.notifier).state = idx;
                       },
                     ),
                   ),
@@ -108,11 +107,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       amount: totalExpense,
                       isIncome: false,
                       transactions: expenseTx,
-                      touchedIndex: _touchedExpenseIndex,
+                      touchedIndex: touchedExpenseIndex,
                       onTouched: (idx) {
-                        setState(() {
-                          _touchedExpenseIndex = idx;
-                        });
+                        ref.read(reportsTouchedExpenseIndexProvider.notifier).state = idx;
                       },
                     ),
                   ),
@@ -441,3 +438,4 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return '${value < 0 ? "-" : ""}${buffer.toString()} ₫';
   }
 }
+

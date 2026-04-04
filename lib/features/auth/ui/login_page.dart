@@ -1,24 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/language_service.dart';
 import '../../../app/routes.dart';
+import '../state/login_state.dart';
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
+class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-
-  bool _obscure = true;
-  bool _loading = false;
-  String? _errorMsg;
 
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
@@ -59,10 +57,8 @@ class _LoginPageState extends State<LoginPage>
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _loading = true;
-      _errorMsg = null;
-    });
+    ref.read(loginLoadingProvider.notifier).state = true;
+    ref.read(loginErrorProvider.notifier).state = null;
 
     try {
       await AuthService.login(_emailCtrl.text, _passCtrl.text);
@@ -71,17 +67,21 @@ class _LoginPageState extends State<LoginPage>
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _errorMsg = e.toString().replaceFirst('Exception: ', '');
-        });
+        ref.read(loginErrorProvider.notifier).state =
+            e.toString().replaceFirst('Exception: ', '');
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        ref.read(loginLoadingProvider.notifier).state = false;
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final obscure = ref.watch(loginObscureProvider);
+    final loading = ref.watch(loginLoadingProvider);
+    final errorMsg = ref.watch(loginErrorProvider);
     final scheme = Theme.of(context).colorScheme;
     final size = MediaQuery.sizeOf(context);
 
@@ -114,11 +114,13 @@ class _LoginPageState extends State<LoginPage>
                             formKey: _formKey,
                             emailCtrl: _emailCtrl,
                             passCtrl: _passCtrl,
-                            obscure: _obscure,
-                            loading: _loading,
-                            errorMsg: _errorMsg,
-                            onToggleObscure: () =>
-                                setState(() => _obscure = !_obscure),
+                            obscure: obscure,
+                            loading: loading,
+                            errorMsg: errorMsg,
+                            onToggleObscure: () {
+                                ref.read(loginObscureProvider.notifier).state =
+                                  !obscure;
+                            },
                             onSubmit: _submit,
                             scheme: scheme,
                           ),

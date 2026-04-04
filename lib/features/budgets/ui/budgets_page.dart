@@ -1,49 +1,52 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
 
 import '../data/budgets_repository.dart';
 import '../../transactions/data/transactions_repository.dart';
 import '../../transactions/models/transaction.dart';
 import '../models/budget.dart';
+import '../state/budgets_state.dart';
 import 'budget_form.dart';
 
-class BudgetsPage extends StatefulWidget {
+
+class BudgetsPage extends ConsumerStatefulWidget {
   const BudgetsPage({super.key});
 
   @override
-  State<BudgetsPage> createState() => _BudgetsPageState();
+  ConsumerState<BudgetsPage> createState() => _BudgetsPageState();
 }
 
-class _BudgetsPageState extends State<BudgetsPage> {
-  final List<Budget> _budgets = [];
-  bool _isLoading = true;
+class _BudgetsPageState extends ConsumerState<BudgetsPage> {
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
+    ref.read(budgetsLoadingProvider.notifier).state = true;
+
     await Future.wait([
       TransactionsRepository.instance.loadTransactions(),
       BudgetsRepository.instance.loadBudgets(),
     ]);
 
-    _budgets
-      ..clear()
-      ..addAll(BudgetsRepository.instance.budgets);
-
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-    });
+    ref.read(budgetsListProvider.notifier).state =
+        List<Budget>.unmodifiable(BudgetsRepository.instance.budgets);
+    ref.read(budgetsLoadingProvider.notifier).state = false;
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = ref.watch(budgetsLoadingProvider);
+    final sourceBudgets = ref.watch(budgetsListProvider);
     final transactions = TransactionsRepository.instance.transactions;
-    final budgets = _budgets
+    final budgets = sourceBudgets
         .map(
           (budget) =>
               budget.copyWith(spent: _spentForBudget(budget, transactions)),
@@ -68,7 +71,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _isLoading ? null : () => _openBudgetForm(),
+        onPressed: isLoading ? null : () => _openBudgetForm(),
         icon: const Icon(Icons.add),
         label: const Text('Thêm ngân sách'),
       ),
@@ -117,7 +120,7 @@ class _BudgetsPageState extends State<BudgetsPage> {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      '${_budgets.length} mục',
+                      '${sourceBudgets.length} mục',
                       style: TextStyle(
                         color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
@@ -131,12 +134,12 @@ class _BudgetsPageState extends State<BudgetsPage> {
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 60),
-            sliver: _isLoading
+            sliver: isLoading
                 ? const SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(child: CircularProgressIndicator()),
                   )
-                : _budgets.isEmpty
+              : sourceBudgets.isEmpty
                 ? SliverFillRemaining(
                     hasScrollBody: false,
                     child: _EmptyState(onCreate: _openBudgetForm),
@@ -176,15 +179,18 @@ class _BudgetsPageState extends State<BudgetsPage> {
     if (result == null || !mounted) return;
 
     await BudgetsRepository.instance.upsertBudget(result);
-    if (!mounted) return;
-    setState(() {
-      final index = _budgets.indexWhere((item) => item.id == result.id);
-      if (index >= 0) {
-        _budgets[index] = result;
-      } else {
-        _budgets.insert(0, result);
-      }
-    });
+    if (!context.mounted) return;
+
+    final current = ref.read(budgetsListProvider);
+    final next = current.toList(growable: true);
+    final index = next.indexWhere((item) => item.id == result.id);
+    if (index >= 0) {
+      next[index] = result;
+    } else {
+      next.insert(0, result);
+    }
+    ref.read(budgetsListProvider.notifier).state =
+        List<Budget>.unmodifiable(next);
   }
 
   void _deleteBudget(Budget budget) {
@@ -203,9 +209,13 @@ class _BudgetsPageState extends State<BudgetsPage> {
               await BudgetsRepository.instance.deleteBudget(budget.id);
               if (!dialogContext.mounted) return;
               Navigator.pop(dialogContext);
-              setState(
-                () => _budgets.removeWhere((item) => item.id == budget.id),
-              );
+
+              final current = ref.read(budgetsListProvider);
+              final next = current
+                  .where((item) => item.id != budget.id)
+                  .toList(growable: false);
+              ref.read(budgetsListProvider.notifier).state =
+                  List<Budget>.unmodifiable(next);
             },
             child: const Text('Xóa'),
           ),
@@ -882,3 +892,4 @@ String _formatMoney(double value) {
 String _formatDate(DateTime date) {
   return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 }
+

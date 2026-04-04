@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../accounts/data/accounts_repository.dart';
@@ -9,9 +10,8 @@ import '../../accounts/models/account.dart';
 import '../../accounts/models/category_item.dart';
 import '../../../core/services/language_service.dart';
 import '../data/transactions_repository.dart';
+import '../state/add_transaction_form_state.dart';
 import '../../shared/widgets/category_helper.dart';
-
-enum _TransactionType { expense, income }
 
 class TransactionFormInitialData {
   final String transactionId;
@@ -33,34 +33,28 @@ class TransactionFormInitialData {
   });
 }
 
-class AddTransactionFormPage extends StatefulWidget {
+class AddTransactionFormPage extends ConsumerStatefulWidget {
   final TransactionFormInitialData? initialData;
 
   const AddTransactionFormPage({super.key, this.initialData});
 
   @override
-  State<AddTransactionFormPage> createState() => _AddTransactionFormPageState();
+  ConsumerState<AddTransactionFormPage> createState() => _AddTransactionFormPageState();
 }
 
-class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
+class _AddTransactionFormPageState extends ConsumerState<AddTransactionFormPage> {
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
-  _TransactionType _type = _TransactionType.expense;
-  String _selectedWalletName = '';
-  String _selectedCategory = '';
-  DateTime _selectedDate = DateTime.now();
-  final List<Uint8List> _attachments = <Uint8List>[];
   final List<Account> _wallets = [];
   final List<CategoryItem> _categories = [];
-  bool _isSubmitting = false;
-  bool _isMetaLoading = true;
 
   bool get _isEditMode => widget.initialData != null;
 
   List<String> get _currentCategories {
-    final targetType = _type == _TransactionType.income ? 'income' : 'expense';
+    final currentType = ref.read(transactionTypeProvider);
+    final targetType = currentType == TransactionFormType.income ? 'income' : 'expense';
     return _categories
         .where((item) => item.type.trim().toLowerCase() == targetType)
         .map((item) => item.name)
@@ -76,12 +70,23 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
     } else {
       _amountController.text = initial.amount.toStringAsFixed(0);
       _noteController.text = initial.note;
-      _selectedWalletName = initial.walletName;
-      _selectedCategory = initial.category;
-      _selectedDate = initial.date;
-      _type = initial.isIncome ? _TransactionType.income : _TransactionType.expense;
     }
-    _loadMetaData();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final seed = widget.initialData;
+      if (seed != null) {
+        ref.read(transactionSelectedWalletProvider.notifier).state =
+            seed.walletName;
+        ref.read(transactionSelectedCategoryProvider.notifier).state =
+            seed.category;
+        ref.read(transactionSelectedDateProvider.notifier).state = seed.date;
+        ref.read(transactionTypeProvider.notifier).state = seed.isIncome
+            ? TransactionFormType.income
+            : TransactionFormType.expense;
+      }
+      _loadMetaData();
+    });
   }
 
   Future<void> _loadMetaData() async {
@@ -98,17 +103,18 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
       ..addAll(CategoriesRepository.instance.categories);
 
     final currentCategories = _currentCategories;
-    if (_selectedCategory.trim().isEmpty && currentCategories.isNotEmpty) {
-      _selectedCategory = currentCategories.first;
+    final selectedCategory = ref.read(transactionSelectedCategoryProvider);
+    if (selectedCategory.trim().isEmpty && currentCategories.isNotEmpty) {
+      ref.read(transactionSelectedCategoryProvider.notifier).state =
+          currentCategories.first;
     }
-    if (_selectedWalletName.trim().isEmpty && _wallets.isNotEmpty) {
-      _selectedWalletName = _wallets.first.name;
+    final selectedWalletName = ref.read(transactionSelectedWalletProvider);
+    if (selectedWalletName.trim().isEmpty && _wallets.isNotEmpty) {
+      ref.read(transactionSelectedWalletProvider.notifier).state =
+          _wallets.first.name;
     }
 
-    if (!mounted) return;
-    setState(() {
-      _isMetaLoading = false;
-    });
+    ref.read(transactionMetaLoadingProvider.notifier).state = false;
   }
 
   @override
@@ -121,25 +127,24 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: ref.read(transactionSelectedDateProvider),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       locale: Locale(LanguageService.isVietnamese ? 'vi' : 'en'),
     );
     if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      ref.read(transactionSelectedDateProvider.notifier).state = picked;
     }
   }
 
   Future<void> _changeDateBy(int days) async {
-    setState(() {
-      _selectedDate = _selectedDate.add(Duration(days: days));
-    });
+    final selectedDate = ref.read(transactionSelectedDateProvider);
+    ref.read(transactionSelectedDateProvider.notifier).state =
+        selectedDate.add(Duration(days: days));
   }
 
   Future<void> _showCategorySelector() async {
+    final selectedCategory = ref.read(transactionSelectedCategoryProvider);
     try {
       await CategoriesRepository.instance.loadCategories(forceRefresh: true);
       _categories
@@ -202,7 +207,7 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                           ),
                         ),
                         title: Text(category),
-                        trailing: category == _selectedCategory
+                        trailing: category == selectedCategory
                             ? const Icon(Icons.check_circle, color: Color(0xFF22B45E))
                             : null,
                         onTap: () => Navigator.of(context).pop(category),
@@ -218,13 +223,12 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
     );
 
     if (selected != null) {
-      setState(() {
-        _selectedCategory = selected;
-      });
+      ref.read(transactionSelectedCategoryProvider.notifier).state = selected;
     }
   }
 
   Future<void> _showWalletSelector() async {
+    final selectedWalletName = ref.read(transactionSelectedWalletProvider);
     try {
       await AccountsRepository.instance.loadAccounts(forceRefresh: true);
       _wallets
@@ -271,7 +275,7 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                 return ListTile(
                   leading: const Icon(Icons.account_balance_wallet_outlined),
                   title: Text(wallet.name),
-                  trailing: wallet.name == _selectedWalletName
+                    trailing: wallet.name == selectedWalletName
                       ? const Icon(Icons.check_circle, color: Color(0xFF22B45E))
                       : null,
                   onTap: () => Navigator.of(context).pop(wallet.name),
@@ -284,9 +288,7 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
     );
 
     if (selected != null) {
-      setState(() {
-        _selectedWalletName = selected;
-      });
+      ref.read(transactionSelectedWalletProvider.notifier).state = selected;
     }
   }
 
@@ -328,20 +330,20 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
     }
 
     final bytes = await pickedFile.readAsBytes();
-    setState(() {
-      _attachments.add(bytes);
-    });
+    final current = ref.read(transactionAttachmentsProvider);
+    ref.read(transactionAttachmentsProvider.notifier).state =
+        List<Uint8List>.unmodifiable(<Uint8List>[...current, bytes]);
   }
 
-  void _changeType(_TransactionType type) {
-    setState(() {
-      _type = type;
-      final categories = _currentCategories;
-      _selectedCategory = categories.isEmpty ? '' : categories.first;
-    });
+  void _changeType(TransactionFormType type) {
+    ref.read(transactionTypeProvider.notifier).state = type;
+    final categories = _currentCategories;
+    ref.read(transactionSelectedCategoryProvider.notifier).state =
+        categories.isEmpty ? '' : categories.first;
   }
 
   String _dateLabel() {
+    final selectedDate = ref.read(transactionSelectedDateProvider);
     final weekday = <int, String>{
       DateTime.monday: 'Thứ Hai',
       DateTime.tuesday: 'Thứ Ba',
@@ -350,15 +352,20 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
       DateTime.friday: 'Thứ Sáu',
       DateTime.saturday: 'Thứ Bảy',
       DateTime.sunday: 'Chủ Nhật',
-    }[_selectedDate.weekday]!;
-    final day = _selectedDate.day.toString().padLeft(2, '0');
-    final month = _selectedDate.month.toString().padLeft(2, '0');
-    final year = _selectedDate.year.toString();
+    }[selectedDate.weekday]!;
+    final day = selectedDate.day.toString().padLeft(2, '0');
+    final month = selectedDate.month.toString().padLeft(2, '0');
+    final year = selectedDate.year.toString();
     return '$weekday, $day/$month/$year';
   }
 
   Future<void> _submit() async {
-    if (_selectedWalletName.trim().isEmpty) {
+    final selectedWalletName = ref.read(transactionSelectedWalletProvider);
+    final selectedCategory = ref.read(transactionSelectedCategoryProvider);
+    final selectedDate = ref.read(transactionSelectedDateProvider);
+    final selectedType = ref.read(transactionTypeProvider);
+
+    if (selectedWalletName.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -372,8 +379,8 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
       return;
     }
 
-    if (_selectedCategory.trim().isEmpty ||
-        !_currentCategories.contains(_selectedCategory)) {
+    if (selectedCategory.trim().isEmpty ||
+      !_currentCategories.contains(selectedCategory)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -403,40 +410,36 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
     }
 
     final note = _noteController.text.trim();
-    final title = note.isEmpty ? _selectedCategory : note;
-    final isIncome = _type == _TransactionType.income;
+    final title = note.isEmpty ? selectedCategory : note;
+    final isIncome = selectedType == TransactionFormType.income;
     final normalizedAmount = amount.abs();
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    ref.read(transactionSubmittingProvider.notifier).state = true;
 
     try {
       if (_isEditMode) {
         await TransactionsRepository.instance.updateTransaction(
           id: widget.initialData!.transactionId,
           title: title,
-          category: _selectedCategory,
-          walletName: _selectedWalletName,
+          category: selectedCategory,
+          walletName: selectedWalletName,
           amount: normalizedAmount,
-          date: _selectedDate,
+          date: selectedDate,
           isIncome: isIncome,
         );
       } else {
         await TransactionsRepository.instance.addTransaction(
           title: title,
-          category: _selectedCategory,
-          walletName: _selectedWalletName,
+          category: selectedCategory,
+          walletName: selectedWalletName,
           amount: normalizedAmount,
-          date: _selectedDate,
+          date: selectedDate,
           isIncome: isIncome,
         );
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _isSubmitting = false;
-      });
+      ref.read(transactionSubmittingProvider.notifier).state = false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
@@ -460,13 +463,20 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    final transactionType = ref.watch(transactionTypeProvider);
+    final selectedWalletName = ref.watch(transactionSelectedWalletProvider);
+    final selectedCategory = ref.watch(transactionSelectedCategoryProvider);
+    final attachments = ref.watch(transactionAttachmentsProvider);
+    final isSubmitting = ref.watch(transactionSubmittingProvider);
+    final isMetaLoading = ref.watch(transactionMetaLoadingProvider);
+
     const bgColor = Color(0xFFF7F8FB);
     const cardColor = Colors.white;
     const muted = Color(0xFF8C919E);
     const valueGreen = Color(0xFF22B45E);
 
-    final selectedCategoryColor = CategoryHelper.colorFor(_selectedCategory);
-    final selectedCategoryIcon = CategoryHelper.iconFor(_selectedCategory);
+    final selectedCategoryColor = CategoryHelper.colorFor(selectedCategory);
+    final selectedCategoryIcon = CategoryHelper.iconFor(selectedCategory);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -509,13 +519,13 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                           children: [
                             _typeChip(
                               label: 'Khoản chi',
-                              selected: _type == _TransactionType.expense,
-                              onTap: () => _changeType(_TransactionType.expense),
+                              selected: transactionType == TransactionFormType.expense,
+                              onTap: () => _changeType(TransactionFormType.expense),
                             ),
                             _typeChip(
                               label: 'Khoản thu',
-                              selected: _type == _TransactionType.income,
-                              onTap: () => _changeType(_TransactionType.income),
+                              selected: transactionType == TransactionFormType.income,
+                              onTap: () => _changeType(TransactionFormType.income),
                             ),
                           ],
                         ),
@@ -531,7 +541,7 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  _selectedWalletName.isEmpty ? '-' : _selectedWalletName,
+                                  selectedWalletName.isEmpty ? '-' : selectedWalletName,
                                   style: const TextStyle(fontSize: 16, color: Color(0xFF181B23), fontWeight: FontWeight.w500),
                                 ),
                               ),
@@ -582,7 +592,7 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  _selectedCategory.isEmpty ? '-' : _selectedCategory,
+                                  selectedCategory.isEmpty ? '-' : selectedCategory,
                                   style: const TextStyle(fontSize: 16, color: Color(0xFF181B23), fontWeight: FontWeight.w500),
                                 ),
                               ),
@@ -658,13 +668,13 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                           ),
                         ),
                       ),
-                      if (_attachments.isNotEmpty) ...[
+                      if (attachments.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         SizedBox(
                           height: 76,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            itemCount: _attachments.length,
+                            itemCount: attachments.length,
                             separatorBuilder: (context, index) => const SizedBox(width: 8),
                             itemBuilder: (context, index) {
                               return Stack(
@@ -672,7 +682,7 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
                                     child: Image.memory(
-                                      _attachments[index],
+                                      attachments[index],
                                       width: 76,
                                       height: 76,
                                       fit: BoxFit.cover,
@@ -683,9 +693,13 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                                     right: 2,
                                     child: GestureDetector(
                                       onTap: () {
-                                        setState(() {
-                                          _attachments.removeAt(index);
-                                        });
+                                        final current =
+                                            ref.read(transactionAttachmentsProvider);
+                                        final next = current.toList(growable: true)
+                                          ..removeAt(index);
+                                        ref
+                                            .read(transactionAttachmentsProvider.notifier)
+                                            .state = List<Uint8List>.unmodifiable(next);
                                       },
                                       child: Container(
                                         width: 20,
@@ -719,7 +733,7 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: (_isSubmitting || _isMetaLoading) ? null : _submit,
+                  onPressed: (isSubmitting || isMetaLoading) ? null : _submit,
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF22B45E),
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -727,7 +741,7 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  child: _isSubmitting
+                  child: isSubmitting
                       ? const SizedBox(
                           width: 22,
                           height: 22,
@@ -808,3 +822,4 @@ class _AddTransactionFormPageState extends State<AddTransactionFormPage> {
     );
   }
 }
+

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/language_service.dart';
 import '../../../core/services/theme_service.dart';
+import '../../../core/state/app_settings_providers.dart';
 import '../../auth/ui/login_page.dart';
 import '../../../core/models/user_model.dart';
 import '../../../app/routes.dart';
@@ -427,11 +429,11 @@ void _showThemeBottomSheet(BuildContext context) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => SafeArea(
-      child: ValueListenableBuilder<ThemeMode>(
-        valueListenable: ThemeService.notifier,
-        builder: (context, selectedMode, _) {
-          return Padding(
+    builder: (_) => Consumer(
+      builder: (context, ref, _) {
+        final selectedMode = ref.watch(themeModeProvider);
+        return SafeArea(
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -464,9 +466,9 @@ void _showThemeBottomSheet(BuildContext context) {
                 ),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     ),
   );
 }
@@ -491,11 +493,11 @@ void _showLanguageBottomSheet(BuildContext context) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (_) => SafeArea(
-      child: ValueListenableBuilder<AppLanguage>(
-        valueListenable: LanguageService.notifier,
-        builder: (context, selectedLanguage, _) {
-          return Padding(
+    builder: (_) => Consumer(
+      builder: (context, ref, _) {
+        final selectedLanguage = ref.watch(appLanguageProvider);
+        return SafeArea(
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -528,9 +530,9 @@ void _showLanguageBottomSheet(BuildContext context) {
                 ),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     ),
   );
 }

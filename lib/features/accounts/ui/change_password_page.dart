@@ -1,25 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/language_service.dart';
+import '../state/change_password_state.dart';
 
-class ChangePasswordPage extends StatefulWidget {
+class ChangePasswordPage extends ConsumerStatefulWidget {
   const ChangePasswordPage({super.key});
 
   @override
-  State<ChangePasswordPage> createState() => _ChangePasswordPageState();
+  ConsumerState<ChangePasswordPage> createState() => _ChangePasswordPageState();
 }
 
-class _ChangePasswordPageState extends State<ChangePasswordPage> {
+class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
   final _formKey = GlobalKey<FormState>();
   final _oldPasswordCtrl = TextEditingController();
   final _newPasswordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
-
-  bool _isSaving = false;
-  bool _obscureOld = true;
-  bool _obscureNew = true;
-  bool _obscureConfirm = true;
 
   @override
   void dispose() {
@@ -32,7 +29,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isSaving = true);
+    ref.read(changePasswordSavingProvider.notifier).state = true;
 
     try {
       await Future.delayed(const Duration(milliseconds: 500));
@@ -58,12 +55,16 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
-      setState(() => _isSaving = false);
+      ref.read(changePasswordSavingProvider.notifier).state = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isSaving = ref.watch(changePasswordSavingProvider);
+    final obscureOld = ref.watch(changePasswordObscureOldProvider);
+    final obscureNew = ref.watch(changePasswordObscureNewProvider);
+    final obscureConfirm = ref.watch(changePasswordObscureConfirmProvider);
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -81,8 +82,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 controller: _oldPasswordCtrl,
                 label: LanguageService.tr(vi: 'Mật khẩu cũ', en: 'Current password'),
                 icon: Icons.lock_outline,
-                obscure: _obscureOld,
-                onToggleObscure: () => setState(() => _obscureOld = !_obscureOld),
+                obscure: obscureOld,
+                onToggleObscure: () =>
+                    ref.read(changePasswordObscureOldProvider.notifier).state = !obscureOld,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return LanguageService.tr(
@@ -98,8 +100,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 controller: _newPasswordCtrl,
                 label: LanguageService.tr(vi: 'Mật khẩu mới', en: 'New password'),
                 icon: Icons.lock_reset,
-                obscure: _obscureNew,
-                onToggleObscure: () => setState(() => _obscureNew = !_obscureNew),
+                obscure: obscureNew,
+                onToggleObscure: () =>
+                    ref.read(changePasswordObscureNewProvider.notifier).state = !obscureNew,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return LanguageService.tr(
@@ -121,9 +124,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   en: 'Confirm new password',
                 ),
                 icon: Icons.verified_user_outlined,
-                obscure: _obscureConfirm,
+                obscure: obscureConfirm,
                 onToggleObscure: () =>
-                    setState(() => _obscureConfirm = !_obscureConfirm),
+                  ref.read(changePasswordObscureConfirmProvider.notifier).state =
+                    !obscureConfirm,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return LanguageService.tr(
@@ -144,7 +148,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isSaving ? null : _submit,
+                  onPressed: isSaving ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -153,7 +157,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     backgroundColor: scheme.primary,
                     foregroundColor: scheme.onPrimary,
                   ),
-                  child: _isSaving
+                  child: isSaving
                       ? const SizedBox(
                           width: 20,
                           height: 20,

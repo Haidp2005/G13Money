@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'reports_screen.dart';
 import 'add_transaction_form_page.dart';
-import '../../accounts/data/categories_repository.dart';
-import '../data/transactions_repository.dart';
 import '../models/transaction.dart';
+import '../state/transaction_filter_state.dart';
+import '../state/transactions_provider.dart';
 import '../../shared/widgets/category_helper.dart';
 
-class TransactionScreen extends StatefulWidget {
+class TransactionScreen extends ConsumerStatefulWidget {
   const TransactionScreen({super.key});
 
   @override
-  State<TransactionScreen> createState() => _TransactionScreenState();
+  ConsumerState<TransactionScreen> createState() => _TransactionScreenState();
 }
 
-class _TransactionScreenState extends State<TransactionScreen> {
+class _TransactionScreenState extends ConsumerState<TransactionScreen> {
   // Dummy Data for demonstration
   final List<Map<String, dynamic>> _groupedTransactions = [
     {
@@ -78,21 +79,6 @@ class _TransactionScreenState extends State<TransactionScreen> {
       ]
     }
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTransactions();
-  }
-
-  Future<void> _loadTransactions() async {
-    await Future.wait([
-      TransactionsRepository.instance.loadTransactions(forceRefresh: true),
-      CategoriesRepository.instance.loadCategories(forceRefresh: true),
-    ]);
-    if (!mounted) return;
-    setState(() {});
-  }
 
   List<Map<String, dynamic>> _groupTransactions(
     List<MoneyTransaction> transactions,
@@ -172,7 +158,9 @@ class _TransactionScreenState extends State<TransactionScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final remoteTransactions = TransactionsRepository.instance.transactions;
+    final transactionState = ref.watch(transactionsControllerProvider);
+    final remoteTransactions =
+      transactionState.valueOrNull ?? <MoneyTransaction>[];
     final groupedData = remoteTransactions.isEmpty
         ? _groupedTransactions
         : _groupTransactions(remoteTransactions);
@@ -274,6 +262,28 @@ class _TransactionScreenState extends State<TransactionScreen> {
             ),
           ),
 
+          if (transactionState.hasError)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: scheme.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Không thể tải giao dịch mới nhất. Đang hiển thị dữ liệu cục bộ.',
+                    style: TextStyle(
+                      color: scheme.onErrorContainer,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           // ── Transaction List ──
           SliverPadding(
             padding: const EdgeInsets.only(bottom: 100), // padding for FAB
@@ -317,7 +327,9 @@ class _TransactionScreenState extends State<TransactionScreen> {
                               ),
                             );
                             if (updated == true) {
-                              await _loadTransactions();
+                              await ref
+                                  .read(transactionsControllerProvider.notifier)
+                                  .refresh();
                             }
                           },
                         )),
@@ -335,21 +347,16 @@ class _TransactionScreenState extends State<TransactionScreen> {
 }
 
 // ── Widget: FilterBar ──
-class _FilterBar extends StatefulWidget {
+class _FilterBar extends ConsumerWidget {
   final Function(String)? onFilterChanged;
 
   const _FilterBar({this.onFilterChanged});
 
-  @override
-  State<_FilterBar> createState() => _FilterBarState();
-}
-
-class _FilterBarState extends State<_FilterBar> {
-  final List<String> _filters = ['Tháng này', 'Tuần này', 'Tùy chỉnh'];
-  int _selectedIndex = 0;
+  static const List<String> _filters = ['Tháng này', 'Tuần này', 'Tùy chỉnh'];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedIndex = ref.watch(transactionFilterIndexProvider);
     final scheme = Theme.of(context).colorScheme;
 
     return SizedBox(
@@ -359,7 +366,7 @@ class _FilterBarState extends State<_FilterBar> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         itemCount: _filters.length,
         itemBuilder: (context, index) {
-          final isSelected = _selectedIndex == index;
+          final isSelected = selectedIndex == index;
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
@@ -373,11 +380,10 @@ class _FilterBarState extends State<_FilterBar> {
               selected: isSelected,
               onSelected: (selected) {
                 if (selected) {
-                  setState(() {
-                    _selectedIndex = index;
-                  });
-                  if (widget.onFilterChanged != null) {
-                    widget.onFilterChanged!(_filters[index]);
+                    ref.read(transactionFilterIndexProvider.notifier).state =
+                      index;
+                  if (onFilterChanged != null) {
+                    onFilterChanged!(_filters[index]);
                   }
                 }
               },

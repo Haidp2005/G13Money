@@ -1,34 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/language_service.dart';
 import '../../accounts/data/accounts_repository.dart';
 import '../../accounts/data/categories_repository.dart';
 import '../../shared/widgets/category_helper.dart';
 import '../models/budget.dart';
+import '../state/budget_form_state.dart';
 
-class BudgetForm extends StatefulWidget {
+
+class BudgetForm extends ConsumerStatefulWidget {
   final Budget? initialBudget;
 
   const BudgetForm({super.key, this.initialBudget});
 
   @override
-  State<BudgetForm> createState() => _BudgetFormState();
+  ConsumerState<BudgetForm> createState() => _BudgetFormState();
 }
 
-class _BudgetFormState extends State<BudgetForm> {
+class _BudgetFormState extends ConsumerState<BudgetForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _limitController;
 
-  String _selectedCategory = '';
   final List<String> _categories = [];
 
-  String _selectedWallet = 'Tất cả ví';
   final List<String> _wallets = ['Tất cả ví'];
-  bool _isLoadingChoices = true;
-
-  late DateTime _startDate;
-  late DateTime _endDate;
 
   @override
   void initState() {
@@ -38,20 +35,29 @@ class _BudgetFormState extends State<BudgetForm> {
     _limitController = TextEditingController(
       text: budget == null ? '' : budget.limit.toStringAsFixed(0),
     );
-    _selectedCategory = budget?.category ?? '';
-    _selectedWallet = budget?.walletName ?? _wallets.first;
 
-    final now = DateTime.now();
-    _startDate = _toCurrentMonthWithDay(budget?.startDate.day ?? 1);
-    _endDate = _toCurrentMonthWithDay(
-      budget?.endDate.day ?? DateTime(now.year, now.month + 1, 0).day,
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(budgetFormCategoryProvider.notifier).state =
+          budget?.category ?? '';
+      ref.read(budgetFormWalletProvider.notifier).state =
+          budget?.walletName ?? _wallets.first;
 
-    if (_endDate.isBefore(_startDate)) {
-      _endDate = _startDate;
-    }
+      final now = DateTime.now();
+      final startDate = _toCurrentMonthWithDay(budget?.startDate.day ?? 1);
+      var endDate = _toCurrentMonthWithDay(
+        budget?.endDate.day ?? DateTime(now.year, now.month + 1, 0).day,
+      );
 
-    _loadChoices();
+      if (endDate.isBefore(startDate)) {
+        endDate = startDate;
+      }
+
+      ref.read(budgetFormStartDateProvider.notifier).state = startDate;
+      ref.read(budgetFormEndDateProvider.notifier).state = endDate;
+
+      _loadChoices();
+    });
   }
 
   Future<void> _loadChoices() async {
@@ -74,17 +80,17 @@ class _BudgetFormState extends State<BudgetForm> {
       ..add('Tất cả ví')
       ..addAll(walletNames);
 
-    if (_selectedCategory.isEmpty || !_categories.contains(_selectedCategory)) {
-      _selectedCategory = _categories.isEmpty ? '' : _categories.first;
+    final selectedCategory = ref.read(budgetFormCategoryProvider);
+    if (selectedCategory.isEmpty || !_categories.contains(selectedCategory)) {
+      ref.read(budgetFormCategoryProvider.notifier).state =
+          _categories.isEmpty ? '' : _categories.first;
     }
-    if (!_wallets.contains(_selectedWallet)) {
-      _selectedWallet = _wallets.first;
+    final selectedWallet = ref.read(budgetFormWalletProvider);
+    if (!_wallets.contains(selectedWallet)) {
+      ref.read(budgetFormWalletProvider.notifier).state = _wallets.first;
     }
 
-    if (!mounted) return;
-    setState(() {
-      _isLoadingChoices = false;
-    });
+    ref.read(budgetFormLoadingChoicesProvider.notifier).state = false;
   }
 
   @override
@@ -96,6 +102,11 @@ class _BudgetFormState extends State<BudgetForm> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedCategory = ref.watch(budgetFormCategoryProvider);
+    final selectedWallet = ref.watch(budgetFormWalletProvider);
+    final isLoadingChoices = ref.watch(budgetFormLoadingChoicesProvider);
+    final startDate = ref.watch(budgetFormStartDateProvider);
+    final endDate = ref.watch(budgetFormEndDateProvider);
     final scheme = Theme.of(context).colorScheme;
     final isEditing = widget.initialBudget != null;
 
@@ -154,8 +165,8 @@ class _BudgetFormState extends State<BudgetForm> {
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
-                  initialValue: _categories.contains(_selectedCategory)
-                      ? _selectedCategory
+                  initialValue: _categories.contains(selectedCategory)
+                      ? selectedCategory
                       : null,
                   disabledHint: Text(
                     LanguageService.tr(
@@ -172,9 +183,7 @@ class _BudgetFormState extends State<BudgetForm> {
                   }).toList(),
                   onChanged: (value) {
                     if (value != null) {
-                      setState(() {
-                        _selectedCategory = value;
-                      });
+                      ref.read(budgetFormCategoryProvider.notifier).state = value;
                     }
                   },
                   validator: (value) {
@@ -186,8 +195,8 @@ class _BudgetFormState extends State<BudgetForm> {
                 ),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
-                  initialValue: _wallets.contains(_selectedWallet)
-                      ? _selectedWallet
+                  initialValue: _wallets.contains(selectedWallet)
+                      ? selectedWallet
                       : null,
                   decoration: const InputDecoration(
                     labelText: 'Áp dụng cho ví/tài khoản',
@@ -197,9 +206,7 @@ class _BudgetFormState extends State<BudgetForm> {
                   }).toList(),
                   onChanged: (value) {
                     if (value != null) {
-                      setState(() {
-                        _selectedWallet = value;
-                      });
+                      ref.read(budgetFormWalletProvider.notifier).state = value;
                     }
                   },
                 ),
@@ -220,7 +227,7 @@ class _BudgetFormState extends State<BudgetForm> {
                     Expanded(
                       child: _DateField(
                         label: 'Từ ngày',
-                        value: _formatDay(_startDate),
+                        value: _formatDay(startDate),
                         onTap: () => _pickStartDate(),
                       ),
                     ),
@@ -228,7 +235,7 @@ class _BudgetFormState extends State<BudgetForm> {
                     Expanded(
                       child: _DateField(
                         label: 'Đến ngày',
-                        value: _formatDay(_endDate),
+                        value: _formatDay(endDate),
                         onTap: () => _pickEndDate(),
                       ),
                     ),
@@ -238,7 +245,7 @@ class _BudgetFormState extends State<BudgetForm> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: _isLoadingChoices ? null : _submit,
+                    onPressed: isLoadingChoices ? null : _submit,
                     icon: const Icon(Icons.save_outlined),
                     label: Text(
                       isEditing ? 'Cập nhật ngân sách' : 'Tạo ngân sách',
@@ -270,18 +277,18 @@ class _BudgetFormState extends State<BudgetForm> {
     final lastDate = DateTime(now.year, now.month + 1, 0);
     final picked = await showDatePicker(
       context: context,
-      initialDate: _startDate,
+      initialDate: ref.read(budgetFormStartDateProvider),
       firstDate: firstDate,
       lastDate: lastDate,
     );
     if (picked == null) return;
 
-    setState(() {
-      _startDate = _toCurrentMonthWithDay(picked.day);
-      if (_endDate.isBefore(_startDate)) {
-        _endDate = _startDate;
-      }
-    });
+    final nextStart = _toCurrentMonthWithDay(picked.day);
+    final currentEnd = ref.read(budgetFormEndDateProvider);
+    ref.read(budgetFormStartDateProvider.notifier).state = nextStart;
+    if (currentEnd.isBefore(nextStart)) {
+      ref.read(budgetFormEndDateProvider.notifier).state = nextStart;
+    }
   }
 
   Future<void> _pickEndDate() async {
@@ -290,23 +297,28 @@ class _BudgetFormState extends State<BudgetForm> {
     final lastDate = DateTime(now.year, now.month + 1, 0);
     final picked = await showDatePicker(
       context: context,
-      initialDate: _endDate,
+      initialDate: ref.read(budgetFormEndDateProvider),
       firstDate: firstDate,
       lastDate: lastDate,
     );
     if (picked == null) return;
 
-    setState(() {
-      final selected = _toCurrentMonthWithDay(picked.day);
-      _endDate = selected.isBefore(_startDate) ? _startDate : selected;
-    });
+    final selected = _toCurrentMonthWithDay(picked.day);
+    final currentStart = ref.read(budgetFormStartDateProvider);
+    ref.read(budgetFormEndDateProvider.notifier).state =
+        selected.isBefore(currentStart) ? currentStart : selected;
   }
 
   void _submit() {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedCategory.isEmpty || !_categories.contains(_selectedCategory)) {
+    final selectedCategory = ref.read(budgetFormCategoryProvider);
+    final selectedWallet = ref.read(budgetFormWalletProvider);
+    final startDate = ref.read(budgetFormStartDateProvider);
+    final endDate = ref.read(budgetFormEndDateProvider);
+
+    if (selectedCategory.isEmpty || !_categories.contains(selectedCategory)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -325,14 +337,14 @@ class _BudgetFormState extends State<BudgetForm> {
           widget.initialBudget?.id ??
           DateTime.now().millisecondsSinceEpoch.toString(),
       title: _titleController.text.trim(),
-      category: _selectedCategory,
-      walletName: _selectedWallet,
+      category: selectedCategory,
+      walletName: selectedWallet,
       limit: double.parse(_limitController.text.replaceAll(',', '').trim()),
       spent: widget.initialBudget?.spent ?? 0.0,
-      startDate: _startDate,
-      endDate: _endDate,
-      color: CategoryHelper.colorFor(_selectedCategory),
-      icon: CategoryHelper.iconFor(_selectedCategory),
+      startDate: startDate,
+      endDate: endDate,
+      color: CategoryHelper.colorFor(selectedCategory),
+      icon: CategoryHelper.iconFor(selectedCategory),
     );
 
     Navigator.pop(context, budget);
@@ -388,3 +400,4 @@ class _DateField extends StatelessWidget {
 }
 
 // Category icon/color mapping is now centralized in CategoryHelper.
+

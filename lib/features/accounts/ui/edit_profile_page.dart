@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/language_service.dart';
+import '../state/edit_profile_state.dart';
 
-class EditProfilePage extends StatefulWidget {
+class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
 
   @override
-  State<EditProfilePage> createState() => _EditProfilePageState();
+  ConsumerState<EditProfilePage> createState() => _EditProfilePageState();
 }
 
-class _EditProfilePageState extends State<EditProfilePage> {
+class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameCtrl;
   late TextEditingController _phoneCtrl;
-  bool _isSaving = false;
 
   @override
   void initState() {
@@ -33,7 +34,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isSaving = true);
+    ref.read(editProfileSavingProvider.notifier).state = true;
 
     try {
       // Giả lập độ trễ mạng
@@ -61,12 +62,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString())),
       );
-      setState(() => _isSaving = false);
+      ref.read(editProfileSavingProvider.notifier).state = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isSaving = ref.watch(editProfileSavingProvider);
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -149,14 +151,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
               // Save Button
               ElevatedButton(
-                onPressed: _isSaving ? null : _save,
+                onPressed: isSaving ? null : _save,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: scheme.primary,
                   foregroundColor: scheme.onPrimary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: _isSaving 
+                child: isSaving 
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : Text(
                       LanguageService.tr(vi: 'Lưu thay đổi', en: 'Save changes'),

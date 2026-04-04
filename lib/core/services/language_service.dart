@@ -1,19 +1,28 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum AppLanguage { vietnamese, english }
 
-class LanguageService {
-  static final ValueNotifier<AppLanguage> notifier =
-      ValueNotifier(AppLanguage.vietnamese);
+class AppLanguageController extends StateNotifier<AppLanguage> {
+  AppLanguageController() : super(AppLanguage.vietnamese);
 
-  static AppLanguage get current => notifier.value;
+  AppLanguage get current => state;
+
+  void setLanguage(AppLanguage language) {
+    if (state != language) {
+      state = language;
+    }
+  }
+}
+
+class LanguageService {
+  static final AppLanguageController controller = AppLanguageController();
+
+  static AppLanguage get current => controller.current;
 
   static bool get isVietnamese => current == AppLanguage.vietnamese;
 
   static void setLanguage(AppLanguage language) {
-    if (notifier.value != language) {
-      notifier.value = language;
-    }
+    controller.setLanguage(language);
   }
 
   static String tr({required String vi, required String en}) {

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/language_service.dart';
 import '../../shared/widgets/category_helper.dart';
-import '../data/categories_repository.dart';
 import '../models/category_item.dart';
+import '../state/manage_categories_state.dart';
 
 const List<_IconOption> _iconOptions = [
   _IconOption('category', Icons.category_outlined),
@@ -20,35 +21,10 @@ const List<_IconOption> _iconOptions = [
   _IconOption('moving', Icons.moving_outlined),
 ];
 
-class ManageCategoriesPage extends StatefulWidget {
+class ManageCategoriesPage extends ConsumerWidget {
   const ManageCategoriesPage({super.key});
 
-  @override
-  State<ManageCategoriesPage> createState() => _ManageCategoriesPageState();
-}
-
-class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
-  final List<CategoryItem> _categories = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCategories();
-  }
-
-  Future<void> _loadCategories() async {
-    final data = await CategoriesRepository.instance.loadCategories();
-    if (!mounted) return;
-    setState(() {
-      _categories
-        ..clear()
-        ..addAll(data);
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _openCategoryForm([CategoryItem? item]) async {
+  Future<void> _openCategoryForm(BuildContext context, WidgetRef ref, [CategoryItem? item]) async {
     final result = await showModalBottomSheet<CategoryItem>(
       context: context,
       isScrollControlled: true,
@@ -56,35 +32,49 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
       builder: (context) => _CategoryFormSheet(initial: item),
     );
 
-    if (result == null || !mounted) return;
-
-    await CategoriesRepository.instance.upsertCategory(result);
-    if (!mounted) return;
-
-    setState(() {
-      final index = _categories.indexWhere((it) => it.id == result.id);
-      if (index >= 0) {
-        _categories[index] = result;
-      } else {
-        _categories.insert(0, result);
-      }
-    });
+    if (result == null || !context.mounted) return;
+    await ref.read(categoriesProvider.notifier).upsert(result);
   }
 
-  Future<void> _deleteCategory(CategoryItem item) async {
-    await CategoriesRepository.instance.deleteCategory(item.id);
-    if (!mounted) return;
-    setState(() {
-      _categories.removeWhere((it) => it.id == item.id);
-    });
+  Future<void> _deleteCategory(WidgetRef ref, CategoryItem item) async {
+    await ref.read(categoriesProvider.notifier).delete(item.id);
   }
 
   @override
-  Widget build(BuildContext context) {
-    final expenseItems = _categories
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categoriesState = ref.watch(categoriesProvider);
+
+    return categoriesState.when(
+      loading: () => Scaffold(
+        appBar: AppBar(
+          title: Text(LanguageService.tr(vi: 'Danh mục', en: 'Categories')),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (error, _) => Scaffold(
+        appBar: AppBar(
+          title: Text(LanguageService.tr(vi: 'Danh mục', en: 'Categories')),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => ref.read(categoriesProvider.notifier).refresh(),
+          icon: const Icon(Icons.refresh),
+          label: Text(LanguageService.tr(vi: 'Thử lại', en: 'Retry')),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              error.toString().replaceFirst('Exception: ', ''),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+      data: (categories) {
+    final expenseItems = categories
         .where((item) => item.type.trim().toLowerCase() == 'expense')
         .toList(growable: false);
-    final incomeItems = _categories
+    final incomeItems = categories
         .where((item) => item.type.trim().toLowerCase() == 'income')
         .toList(growable: false);
 
@@ -93,13 +83,11 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
         title: Text(LanguageService.tr(vi: 'Danh mục', en: 'Categories')),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openCategoryForm(),
+        onPressed: () => _openCategoryForm(context, ref),
         icon: const Icon(Icons.add),
         label: Text(LanguageService.tr(vi: 'Thêm danh mục', en: 'Add category')),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _categories.isEmpty
+      body: categories.isEmpty
               ? Center(
                   child: Text(
                     LanguageService.tr(
@@ -120,6 +108,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
                     const SizedBox(height: 10),
                     _sectionCard(
                       context,
+                      ref: ref,
                       items: expenseItems,
                       emptyText: LanguageService.tr(
                         vi: 'Chưa có danh mục chi',
@@ -136,6 +125,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
                     const SizedBox(height: 10),
                     _sectionCard(
                       context,
+                      ref: ref,
                       items: incomeItems,
                       emptyText: LanguageService.tr(
                         vi: 'Chưa có danh mục thu',
@@ -144,6 +134,8 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
                     ),
                   ],
                 ),
+    );
+      },
     );
   }
 
@@ -171,6 +163,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
 
   Widget _sectionCard(
     BuildContext context, {
+    required WidgetRef ref,
     required List<CategoryItem> items,
     required String emptyText,
   }) {
@@ -202,9 +195,9 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
                       trailing: PopupMenuButton<String>(
                         onSelected: (value) {
                           if (value == 'edit') {
-                            _openCategoryForm(item);
+                            _openCategoryForm(context, ref, item);
                           } else if (value == 'delete') {
-                            _deleteCategory(item);
+                            _deleteCategory(ref, item);
                           }
                         },
                         itemBuilder: (context) => [
@@ -233,26 +226,29 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
   }
 }
 
-class _CategoryFormSheet extends StatefulWidget {
+class _CategoryFormSheet extends ConsumerStatefulWidget {
   final CategoryItem? initial;
   const _CategoryFormSheet({this.initial});
 
   @override
-  State<_CategoryFormSheet> createState() => _CategoryFormSheetState();
+  ConsumerState<_CategoryFormSheet> createState() => _CategoryFormSheetState();
 }
 
-class _CategoryFormSheetState extends State<_CategoryFormSheet> {
+class _CategoryFormSheetState extends ConsumerState<_CategoryFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
-  String _type = 'expense';
-  String _iconKey = 'category';
 
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.initial?.name ?? '');
-    _type = widget.initial?.type ?? 'expense';
-    _iconKey = widget.initial?.iconKey ?? 'category';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(categoryFormTypeProvider.notifier).state =
+        widget.initial?.type ?? 'expense';
+      ref.read(categoryFormIconProvider.notifier).state =
+        widget.initial?.iconKey ?? 'category';
+    });
   }
 
   @override
@@ -263,12 +259,14 @@ class _CategoryFormSheetState extends State<_CategoryFormSheet> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
+    final selectedType = ref.read(categoryFormTypeProvider);
+    final selectedIcon = ref.read(categoryFormIconProvider);
 
     final model = CategoryItem(
       id: widget.initial?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameCtrl.text.trim(),
-      type: _type,
-      iconKey: _iconKey,
+      type: selectedType,
+      iconKey: selectedIcon,
       colorHex: widget.initial?.colorHex ?? '#0D7377',
       isDefault: false,
     );
@@ -279,6 +277,8 @@ class _CategoryFormSheetState extends State<_CategoryFormSheet> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final selectedType = ref.watch(categoryFormTypeProvider);
+    final selectedIcon = ref.watch(categoryFormIconProvider);
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
@@ -328,16 +328,18 @@ class _CategoryFormSheetState extends State<_CategoryFormSheet> {
                     Expanded(
                       child: _TypeChip(
                         label: LanguageService.tr(vi: 'Chi', en: 'Expense'),
-                        selected: _type == 'expense',
-                        onTap: () => setState(() => _type = 'expense'),
+                        selected: selectedType == 'expense',
+                        onTap: () =>
+                            ref.read(categoryFormTypeProvider.notifier).state = 'expense',
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: _TypeChip(
                         label: LanguageService.tr(vi: 'Thu', en: 'Income'),
-                        selected: _type == 'income',
-                        onTap: () => setState(() => _type = 'income'),
+                        selected: selectedType == 'income',
+                        onTap: () =>
+                            ref.read(categoryFormTypeProvider.notifier).state = 'income',
                       ),
                     ),
                   ],
@@ -352,10 +354,11 @@ class _CategoryFormSheetState extends State<_CategoryFormSheet> {
                   spacing: 10,
                   runSpacing: 10,
                   children: _iconOptions.map((option) {
-                    final selected = _iconKey == option.key;
+                    final selected = selectedIcon == option.key;
                     return InkWell(
                       borderRadius: BorderRadius.circular(28),
-                      onTap: () => setState(() => _iconKey = option.key),
+                      onTap: () =>
+                          ref.read(categoryFormIconProvider.notifier).state = option.key,
                       child: CircleAvatar(
                         radius: 22,
                         backgroundColor: selected

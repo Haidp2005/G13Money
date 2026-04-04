@@ -1,52 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/language_service.dart';
-import '../data/accounts_repository.dart';
 import '../models/account.dart';
+import '../state/manage_wallets_state.dart';
 
-class ManageWalletsPage extends StatefulWidget {
+class ManageWalletsPage extends ConsumerWidget {
   const ManageWalletsPage({super.key});
 
-  @override
-  State<ManageWalletsPage> createState() => _ManageWalletsPageState();
-}
-
-class _ManageWalletsPageState extends State<ManageWalletsPage> {
-  final List<Account> _accounts = [];
-  bool _isLoading = true;
-  String? _loadError;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAccounts();
-  }
-
-  Future<void> _loadAccounts() async {
-    setState(() {
-      _isLoading = true;
-      _loadError = null;
-    });
-
-    try {
-      final data = await AccountsRepository.instance.loadAccounts(forceRefresh: true);
-      if (!mounted) return;
-      setState(() {
-        _accounts
-          ..clear()
-          ..addAll(data);
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _loadError = e.toString().replaceFirst('Exception: ', '');
-      });
-    }
-  }
-
-  Future<void> _openAccountForm([Account? account]) async {
+  Future<void> _openAccountForm(BuildContext context, WidgetRef ref, [Account? account]) async {
     final result = await showModalBottomSheet<Account>(
       context: context,
       isScrollControlled: true,
@@ -54,45 +16,30 @@ class _ManageWalletsPageState extends State<ManageWalletsPage> {
       builder: (context) => _AccountFormSheet(initial: account),
     );
 
-    if (result == null || !mounted) return;
-
-    await AccountsRepository.instance.upsertAccount(result);
-    if (!mounted) return;
-
-    setState(() {
-      final index = _accounts.indexWhere((item) => item.id == result.id);
-      if (index >= 0) {
-        _accounts[index] = result;
-      } else {
-        _accounts.insert(0, result);
-      }
-    });
+    if (result == null || !context.mounted) return;
+    await ref.read(walletsProvider.notifier).upsert(result);
   }
 
-  Future<void> _deleteAccount(Account account) async {
-    await AccountsRepository.instance.deleteAccount(account.id);
-    if (!mounted) return;
-    setState(() {
-      _accounts.removeWhere((item) => item.id == account.id);
-    });
+  Future<void> _deleteAccount(WidgetRef ref, Account account) async {
+    await ref.read(walletsProvider.notifier).delete(account.id);
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final walletsState = ref.watch(walletsProvider);
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(LanguageService.tr(vi: 'Ví và tài khoản', en: 'Wallets and accounts')),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openAccountForm(),
+        onPressed: () => _openAccountForm(context, ref),
         icon: const Icon(Icons.add),
         label: Text(LanguageService.tr(vi: 'Thêm ví', en: 'Add wallet')),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-              ? Center(
+      body: walletsState.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
@@ -110,13 +57,13 @@ class _ManageWalletsPageState extends State<ManageWalletsPage> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          _loadError!,
+                          error.toString().replaceFirst('Exception: ', ''),
                           textAlign: TextAlign.center,
                           style: TextStyle(color: scheme.outline),
                         ),
                         const SizedBox(height: 14),
                         FilledButton.icon(
-                          onPressed: _loadAccounts,
+                          onPressed: () => ref.read(walletsProvider.notifier).refresh(),
                           icon: const Icon(Icons.refresh),
                           label: Text(LanguageService.tr(vi: 'Thử lại', en: 'Retry')),
                         ),
@@ -124,7 +71,8 @@ class _ManageWalletsPageState extends State<ManageWalletsPage> {
                     ),
                   ),
                 )
-          : _accounts.isEmpty
+        ,
+        data: (accounts) => accounts.isEmpty
               ? Center(
                   child: Text(
                     LanguageService.tr(
@@ -136,7 +84,7 @@ class _ManageWalletsPageState extends State<ManageWalletsPage> {
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                   itemBuilder: (context, index) {
-                    final account = _accounts[index];
+                    final account = accounts[index];
                     return ListTile(
                       tileColor: scheme.surface,
                       shape: RoundedRectangleBorder(
@@ -159,9 +107,9 @@ class _ManageWalletsPageState extends State<ManageWalletsPage> {
                           PopupMenuButton<String>(
                             onSelected: (value) {
                               if (value == 'edit') {
-                                _openAccountForm(account);
+                                _openAccountForm(context, ref, account);
                               } else if (value == 'delete') {
-                                _deleteAccount(account);
+                                _deleteAccount(ref, account);
                               }
                             },
                             itemBuilder: (context) => [
@@ -180,8 +128,9 @@ class _ManageWalletsPageState extends State<ManageWalletsPage> {
                     );
                   },
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemCount: _accounts.length,
+                  itemCount: accounts.length,
                 ),
+      ),
     );
   }
 
@@ -218,19 +167,18 @@ class _ManageWalletsPageState extends State<ManageWalletsPage> {
   }
 }
 
-class _AccountFormSheet extends StatefulWidget {
+class _AccountFormSheet extends ConsumerStatefulWidget {
   final Account? initial;
   const _AccountFormSheet({this.initial});
 
   @override
-  State<_AccountFormSheet> createState() => _AccountFormSheetState();
+  ConsumerState<_AccountFormSheet> createState() => _AccountFormSheetState();
 }
 
-class _AccountFormSheetState extends State<_AccountFormSheet> {
+class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameCtrl;
   late final TextEditingController _balanceCtrl;
-  String _type = 'cash';
 
   @override
   void initState() {
@@ -239,7 +187,11 @@ class _AccountFormSheetState extends State<_AccountFormSheet> {
     _balanceCtrl = TextEditingController(
       text: widget.initial == null ? '' : widget.initial!.balance.toStringAsFixed(0),
     );
-    _type = widget.initial?.type ?? 'cash';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(accountFormTypeProvider.notifier).state =
+          widget.initial?.type ?? 'cash';
+    });
   }
 
   @override
@@ -252,11 +204,12 @@ class _AccountFormSheetState extends State<_AccountFormSheet> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
     final balance = double.parse(_balanceCtrl.text.replaceAll(',', '').trim());
+    final type = ref.read(accountFormTypeProvider);
 
     final model = Account(
       id: widget.initial?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameCtrl.text.trim(),
-      type: _type,
+      type: type,
       balance: balance,
       colorHex: widget.initial?.colorHex ?? '#0D7377',
       isArchived: false,
@@ -267,6 +220,7 @@ class _AccountFormSheetState extends State<_AccountFormSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedType = ref.watch(accountFormTypeProvider);
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
@@ -291,7 +245,7 @@ class _AccountFormSheetState extends State<_AccountFormSheet> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: _type,
+                initialValue: selectedType,
                 decoration: InputDecoration(
                   labelText: LanguageService.tr(vi: 'Loại', en: 'Type'),
                 ),
@@ -301,7 +255,9 @@ class _AccountFormSheetState extends State<_AccountFormSheet> {
                   DropdownMenuItem(value: 'ewallet', child: Text('E-wallet')),
                 ],
                 onChanged: (v) {
-                  if (v != null) setState(() => _type = v);
+                  if (v != null) {
+                    ref.read(accountFormTypeProvider.notifier).state = v;
+                  }
                 },
               ),
               const SizedBox(height: 12),

@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/services/auth_service.dart';
@@ -10,35 +11,31 @@ import '../../shared/widgets/bottom_nav.dart';
 import '../../shared/widgets/category_helper.dart';
 import '../../transactions/data/transactions_repository.dart';
 import '../../transactions/models/transaction.dart';
+import '../state/overview_state.dart';
 
-class OverviewPage extends StatefulWidget {
+
+class OverviewPage extends ConsumerStatefulWidget {
   const OverviewPage({super.key, this.showBottomNav = true});
 
   final bool showBottomNav;
 
   @override
-  State<OverviewPage> createState() => _OverviewPageState();
+  ConsumerState<OverviewPage> createState() => _OverviewPageState();
 }
 
-class _OverviewPageState extends State<OverviewPage> {
-  int _selectedPeriod = 1; // 0 = Tuần, 1 = Tháng
-  bool _isLoading = true;
-  String? _loadError;
-
-  final List<Account> _wallets = [];
-  final List<MoneyTransaction> _transactions = [];
-
+class _OverviewPageState extends ConsumerState<OverviewPage> {
   @override
   void initState() {
     super.initState();
-    _loadOverviewData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadOverviewData();
+    });
   }
 
   Future<void> _loadOverviewData() async {
-    setState(() {
-      _isLoading = true;
-      _loadError = null;
-    });
+    ref.read(overviewLoadingProvider.notifier).state = true;
+    ref.read(overviewErrorProvider.notifier).state = null;
 
     try {
       await Future.wait([
@@ -47,41 +44,24 @@ class _OverviewPageState extends State<OverviewPage> {
         CategoriesRepository.instance.loadCategories(forceRefresh: true),
       ]);
 
-      if (!mounted) return;
-
-      setState(() {
-        _wallets
-          ..clear()
-          ..addAll(AccountsRepository.instance.accounts);
-        _transactions
-          ..clear()
-          ..addAll(TransactionsRepository.instance.transactions);
-        _isLoading = false;
-      });
+      ref.read(overviewWalletsProvider.notifier).state =
+          List<Account>.unmodifiable(AccountsRepository.instance.accounts);
+      ref.read(overviewTransactionsProvider.notifier).state =
+          List<MoneyTransaction>.unmodifiable(
+            TransactionsRepository.instance.transactions,
+          );
+      ref.read(overviewLoadingProvider.notifier).state = false;
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _loadError = e.toString().replaceFirst('Exception: ', '');
-      });
+      ref.read(overviewLoadingProvider.notifier).state = false;
+      ref.read(overviewErrorProvider.notifier).state =
+          e.toString().replaceFirst('Exception: ', '');
     }
   }
 
-  double get _totalBalance =>
-      _wallets.fold<double>(0, (sum, item) => sum + item.balance);
-
-  double get _totalIncome => _transactions
-      .where((item) => item.isIncome)
-      .fold<double>(0, (sum, item) => sum + item.amount);
-
-  double get _totalExpense => _transactions
-      .where((item) => !item.isIncome)
-      .fold<double>(0, (sum, item) => sum + item.amount);
-
-  List<_ChartData> _chartData() {
-    return _selectedPeriod == 0
-        ? _buildWeeklyChartData(_transactions)
-        : _buildMonthlyChartData(_transactions);
+  List<_ChartData> _chartData(int selectedPeriod, List<MoneyTransaction> transactions) {
+    return selectedPeriod == 0
+        ? _buildWeeklyChartData(transactions)
+        : _buildMonthlyChartData(transactions);
   }
 
   List<_ChartData> _buildMonthlyChartData(List<MoneyTransaction> transactions) {
@@ -178,15 +158,29 @@ class _OverviewPageState extends State<OverviewPage> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedPeriod = ref.watch(overviewSelectedPeriodProvider);
+    final isLoading = ref.watch(overviewLoadingProvider);
+    final loadError = ref.watch(overviewErrorProvider);
+    final wallets = ref.watch(overviewWalletsProvider);
+    final transactions = ref.watch(overviewTransactionsProvider);
+
+    final totalBalance = wallets.fold<double>(0, (sum, item) => sum + item.balance);
+    final totalIncome = transactions
+      .where((item) => item.isIncome)
+      .fold<double>(0, (sum, item) => sum + item.amount);
+    final totalExpense = transactions
+      .where((item) => !item.isIncome)
+      .fold<double>(0, (sum, item) => sum + item.amount);
+
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,
       body: SafeArea(
-        child: _isLoading
+        child: isLoading
             ? const Center(child: CircularProgressIndicator())
-            : _loadError != null
-                ? _buildErrorState(scheme)
+          : loadError != null
+            ? _buildErrorState(scheme, loadError)
                 : RefreshIndicator(
                     onRefresh: _loadOverviewData,
                     child: SingleChildScrollView(
@@ -199,13 +193,24 @@ class _OverviewPageState extends State<OverviewPage> {
                         children: [
                           _buildHeader(scheme),
                           const SizedBox(height: 24),
-                          _buildBalanceCard(scheme),
+                          _buildBalanceCard(
+                            scheme,
+                            totalBalance,
+                            totalIncome,
+                            totalExpense,
+                          ),
                           const SizedBox(height: 24),
-                          _buildReportSection(scheme),
+                          _buildReportSection(
+                            scheme,
+                            selectedPeriod,
+                            totalIncome,
+                            totalExpense,
+                            _chartData(selectedPeriod, transactions),
+                          ),
                           const SizedBox(height: 24),
-                          _buildWalletSection(scheme),
+                          _buildWalletSection(scheme, wallets),
                           const SizedBox(height: 24),
-                          _buildRecentTransactionsSection(scheme),
+                          _buildRecentTransactionsSection(scheme, transactions),
                         ],
                       ),
                     ),
@@ -217,7 +222,7 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  Widget _buildErrorState(ColorScheme scheme) {
+  Widget _buildErrorState(ColorScheme scheme, String loadError) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -233,7 +238,7 @@ class _OverviewPageState extends State<OverviewPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              _loadError ?? '',
+              loadError,
               style: TextStyle(color: scheme.outline),
               textAlign: TextAlign.center,
             ),
@@ -333,7 +338,12 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  Widget _buildBalanceCard(ColorScheme scheme) {
+  Widget _buildBalanceCard(
+    ColorScheme scheme,
+    double totalBalance,
+    double totalIncome,
+    double totalExpense,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
@@ -369,7 +379,7 @@ class _OverviewPageState extends State<OverviewPage> {
           ),
           const SizedBox(height: 10),
           Text(
-            _formatCurrency(_totalBalance),
+            _formatCurrency(totalBalance),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 32,
@@ -383,13 +393,13 @@ class _OverviewPageState extends State<OverviewPage> {
               _balanceSummaryChip(
                 icon: Icons.arrow_upward_rounded,
                 label: 'Thu nhập',
-                value: _formatCurrency(_totalIncome),
+                value: _formatCurrency(totalIncome),
               ),
               const SizedBox(width: 12),
               _balanceSummaryChip(
                 icon: Icons.arrow_downward_rounded,
                 label: 'Chi tiêu',
-                value: _formatCurrency(_totalExpense),
+                value: _formatCurrency(totalExpense),
               ),
             ],
           ),
@@ -450,8 +460,13 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  Widget _buildReportSection(ColorScheme scheme) {
-    final chartData = _chartData();
+  Widget _buildReportSection(
+    ColorScheme scheme,
+    int selectedPeriod,
+    double totalIncome,
+    double totalExpense,
+    List<_ChartData> chartData,
+  ) {
     final maxSeries = chartData.fold<double>(1, (maxSoFar, item) {
       final localMax = item.income > item.expense ? item.income : item.expense;
       return localMax > maxSoFar ? localMax : maxSoFar;
@@ -469,7 +484,7 @@ class _OverviewPageState extends State<OverviewPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildPeriodSwitch(scheme),
+              _buildPeriodSwitch(scheme, selectedPeriod),
               const SizedBox(height: 14),
               SizedBox(
                 height: 200,
@@ -560,7 +575,7 @@ class _OverviewPageState extends State<OverviewPage> {
                           Text('Tổng thu', style: TextStyle(color: scheme.outline, fontSize: 12)),
                           const SizedBox(height: 4),
                           Text(
-                            _formatCurrency(_totalIncome),
+                            _formatCurrency(totalIncome),
                             style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700),
                           ),
                         ],
@@ -573,7 +588,7 @@ class _OverviewPageState extends State<OverviewPage> {
                           Text('Tổng chi', style: TextStyle(color: scheme.outline, fontSize: 12)),
                           const SizedBox(height: 4),
                           Text(
-                            _formatCurrency(_totalExpense),
+                            _formatCurrency(totalExpense),
                             style: const TextStyle(color: Color(0xFFFF6B6B), fontWeight: FontWeight.w700),
                           ),
                         ],
@@ -589,7 +604,7 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  Widget _buildWalletSection(ColorScheme scheme) {
+  Widget _buildWalletSection(ColorScheme scheme, List<Account> wallets) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -597,11 +612,11 @@ class _OverviewPageState extends State<OverviewPage> {
         const SizedBox(height: 14),
         _sectionCard(
           scheme: scheme,
-          child: _wallets.isEmpty
+          child: wallets.isEmpty
               ? Text('Chưa có ví', style: TextStyle(color: scheme.outline))
               : Column(
-                  children: _wallets.asMap().entries.map((entry) {
-                    final isLast = entry.key == _wallets.length - 1;
+                  children: wallets.asMap().entries.map((entry) {
+                    final isLast = entry.key == wallets.length - 1;
                     return Column(
                       children: [
                         _walletTile(entry.value, scheme),
@@ -619,8 +634,11 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  Widget _buildRecentTransactionsSection(ColorScheme scheme) {
-    final recent = _transactions.take(6).toList(growable: false);
+  Widget _buildRecentTransactionsSection(
+    ColorScheme scheme,
+    List<MoneyTransaction> transactions,
+  ) {
+    final recent = transactions.take(6).toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -725,7 +743,7 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  Widget _buildPeriodSwitch(ColorScheme scheme) {
+  Widget _buildPeriodSwitch(ColorScheme scheme, int selectedPeriod) {
     return Container(
       height: 44,
       padding: const EdgeInsets.all(3),
@@ -735,18 +753,24 @@ class _OverviewPageState extends State<OverviewPage> {
       ),
       child: Row(
         children: [
-          _periodTab('Tuần', 0, scheme),
-          _periodTab('Tháng', 1, scheme),
+          _periodTab('Tuần', 0, scheme, selectedPeriod),
+          _periodTab('Tháng', 1, scheme, selectedPeriod),
         ],
       ),
     );
   }
 
-  Widget _periodTab(String label, int index, ColorScheme scheme) {
-    final isSelected = _selectedPeriod == index;
+  Widget _periodTab(
+    String label,
+    int index,
+    ColorScheme scheme,
+    int selectedPeriod,
+  ) {
+    final isSelected = selectedPeriod == index;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedPeriod = index),
+        onTap: () =>
+            ref.read(overviewSelectedPeriodProvider.notifier).state = index,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeInOut,
@@ -830,3 +854,4 @@ class _ChartData {
   final double income;
   final double expense;
 }
+
