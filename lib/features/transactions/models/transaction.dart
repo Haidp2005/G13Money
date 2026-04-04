@@ -8,6 +8,7 @@ class MoneyTransaction {
   final double amount;
   final DateTime date;
   final bool isIncome;
+  final List<String> attachmentUrls;
 
   const MoneyTransaction({
     required this.id,
@@ -17,6 +18,7 @@ class MoneyTransaction {
     required this.amount,
     required this.date,
     required this.isIncome,
+    this.attachmentUrls = const <String>[],
   });
 
   Map<String, dynamic> toFirestore() {
@@ -32,6 +34,7 @@ class MoneyTransaction {
       'month': date.month,
       'day': date.day,
       'yearMonth': '${date.year}-${date.month.toString().padLeft(2, '0')}',
+      'attachmentUrls': attachmentUrls,
       'updatedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
     };
@@ -59,6 +62,10 @@ class MoneyTransaction {
       amount: (data['amount'] as num?)?.toDouble() ?? 0,
       date: dateValue,
       isIncome: (data['isIncome'] as bool?) ?? false,
+      attachmentUrls: ((data['attachmentUrls'] as List<dynamic>?) ?? const [])
+          .map((item) => item.toString())
+          .where((item) => item.trim().isNotEmpty)
+          .toList(growable: false),
     );
   }
 }

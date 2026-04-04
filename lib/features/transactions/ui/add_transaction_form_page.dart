@@ -8,7 +8,9 @@ import '../../accounts/data/accounts_repository.dart';
 import '../../accounts/data/categories_repository.dart';
 import '../../accounts/models/account.dart';
 import '../../accounts/models/category_item.dart';
+import '../../../core/services/auth_service.dart';
 import '../../../core/services/language_service.dart';
+import '../../../core/services/supabase_storage_service.dart';
 import '../data/transactions_repository.dart';
 import '../state/add_transaction_form_state.dart';
 import '../../shared/widgets/category_helper.dart';
@@ -21,6 +23,7 @@ class TransactionFormInitialData {
   final double amount;
   final DateTime date;
   final bool isIncome;
+  final List<String> attachmentUrls;
 
   const TransactionFormInitialData({
     required this.transactionId,
@@ -30,6 +33,7 @@ class TransactionFormInitialData {
     required this.amount,
     required this.date,
     required this.isIncome,
+    this.attachmentUrls = const <String>[],
   });
 }
 
@@ -49,6 +53,7 @@ class _AddTransactionFormPageState extends ConsumerState<AddTransactionFormPage>
 
   final List<Account> _wallets = [];
   final List<CategoryItem> _categories = [];
+  List<String> _existingAttachmentUrls = <String>[];
 
   bool get _isEditMode => widget.initialData != null;
 
@@ -70,6 +75,7 @@ class _AddTransactionFormPageState extends ConsumerState<AddTransactionFormPage>
     } else {
       _amountController.text = initial.amount.toStringAsFixed(0);
       _noteController.text = initial.note;
+      _existingAttachmentUrls = List<String>.from(initial.attachmentUrls);
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -543,10 +549,33 @@ class _AddTransactionFormPageState extends ConsumerState<AddTransactionFormPage>
     final title = note.isEmpty ? selectedCategory : note;
     final isIncome = selectedType == TransactionFormType.income;
     final normalizedAmount = amount.abs();
+    final attachments = ref.read(transactionAttachmentsProvider);
 
     ref.read(transactionSubmittingProvider.notifier).state = true;
 
     try {
+      final uid = AuthService.currentUserId;
+      if (uid == null) {
+        throw Exception('Bạn chưa đăng nhập');
+      }
+
+      final txId = _isEditMode
+          ? widget.initialData!.transactionId
+          : DateTime.now().microsecondsSinceEpoch.toString();
+
+      final uploadedAttachmentUrls = attachments.isEmpty
+          ? const <String>[]
+          : await SupabaseStorageService.uploadTransactionImages(
+              uid: uid,
+              transactionId: txId,
+              images: attachments,
+            );
+
+      final mergedAttachmentUrls = <String>[
+        ..._existingAttachmentUrls,
+        ...uploadedAttachmentUrls,
+      ];
+
       if (_isEditMode) {
         await TransactionsRepository.instance.updateTransaction(
           id: widget.initialData!.transactionId,
@@ -556,6 +585,7 @@ class _AddTransactionFormPageState extends ConsumerState<AddTransactionFormPage>
           amount: normalizedAmount,
           date: selectedDate,
           isIncome: isIncome,
+          attachmentUrls: mergedAttachmentUrls,
         );
       } else {
         await TransactionsRepository.instance.addTransaction(
@@ -565,6 +595,7 @@ class _AddTransactionFormPageState extends ConsumerState<AddTransactionFormPage>
           amount: normalizedAmount,
           date: selectedDate,
           isIncome: isIncome,
+          attachmentUrls: mergedAttachmentUrls,
         );
       }
     } catch (e) {

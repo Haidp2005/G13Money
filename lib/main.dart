@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
 import 'core/services/push_notification_service.dart';
+import 'core/services/supabase_storage_service.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -11,6 +12,7 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await SupabaseStorageService.initialize();
   await PushNotificationService.initialize();
   runApp(
     const ProviderScope(

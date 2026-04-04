@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/routes.dart';
+import '../../../core/services/ai_finance_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../accounts/data/accounts_repository.dart';
 import '../../accounts/data/categories_repository.dart';
@@ -11,6 +12,7 @@ import '../../shared/widgets/bottom_nav.dart';
 import '../../shared/widgets/category_helper.dart';
 import '../../transactions/data/transactions_repository.dart';
 import '../../transactions/models/transaction.dart';
+import 'ai_chat_page.dart';
 import '../state/overview_state.dart';
 
 
@@ -24,6 +26,9 @@ class OverviewPage extends ConsumerStatefulWidget {
 }
 
 class _OverviewPageState extends ConsumerState<OverviewPage> {
+  bool _aiLoading = false;
+  String? _aiAdvice;
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +61,26 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
       ref.read(overviewErrorProvider.notifier).state =
           e.toString().replaceFirst('Exception: ', '');
     }
+  }
+
+  Future<void> _generateAiAdvice(
+    List<MoneyTransaction> transactions,
+    List<Account> wallets,
+  ) async {
+    setState(() {
+      _aiLoading = true;
+    });
+
+    final advice = await AiFinanceService.generateAdvice(
+      transactions: transactions,
+      wallets: wallets,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _aiAdvice = advice;
+      _aiLoading = false;
+    });
   }
 
   List<_ChartData> _chartData(int selectedPeriod, List<MoneyTransaction> transactions) {
@@ -198,6 +223,12 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                             totalBalance,
                             totalIncome,
                             totalExpense,
+                          ),
+                          const SizedBox(height: 24),
+                          _buildAiSuggestionSection(
+                            scheme,
+                            transactions,
+                            wallets,
                           ),
                           const SizedBox(height: 24),
                           _buildReportSection(
@@ -601,6 +632,115 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                     ),
                   ],
                 ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAiSuggestionSection(
+    ColorScheme scheme,
+    List<MoneyTransaction> transactions,
+    List<Account> wallets,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(
+          title: 'Gợi ý tài chính AI',
+          action: 'Tạo mới',
+          scheme: scheme,
+          onTap: () => _generateAiAdvice(transactions, wallets),
+        ),
+        const SizedBox(height: 14),
+        _sectionCard(
+          scheme: scheme,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome_rounded, color: scheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Nhận 3 gợi ý hành động dựa trên dữ liệu thu chi của bạn',
+                      style: TextStyle(
+                        color: scheme.onSurface,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (_aiLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: LinearProgressIndicator(minHeight: 6),
+                ),
+              if (!_aiLoading && (_aiAdvice == null || _aiAdvice!.trim().isEmpty))
+                Text(
+                  'Nhấn "Tạo gợi ý AI" để nhận tư vấn tài chính cá nhân hoá.',
+                  style: TextStyle(color: scheme.outline, fontSize: 13),
+                ),
+              if (!_aiLoading && _aiAdvice != null && _aiAdvice!.trim().isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _aiAdvice!,
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontSize: 13,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _aiLoading
+                          ? null
+                          : () => _generateAiAdvice(transactions, wallets),
+                      icon: const Icon(Icons.psychology_alt_outlined),
+                      label: Text(
+                        AiFinanceService.isConfigured
+                            ? 'Tạo gợi ý AI'
+                            : 'Tạo gợi ý (local + AI)',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _aiLoading
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AiChatPage(
+                                    transactions: transactions,
+                                    wallets: wallets,
+                                  ),
+                                ),
+                              );
+                            },
+                      icon: const Icon(Icons.chat_bubble_outline_rounded),
+                      label: const Text('Chat AI'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

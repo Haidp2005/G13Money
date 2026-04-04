@@ -48,6 +48,7 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
             amount: tx.amount,
             date: tx.date,
             isIncome: tx.isIncome,
+            attachmentUrls: tx.attachmentUrls,
           ),
         ),
       ),
@@ -144,6 +145,32 @@ class _TransactionDetailPageState extends State<TransactionDetailPage> {
                     _InfoRow(label: 'Ví', value: tx.walletName),
                     _InfoRow(label: 'Ngày', value: _formatDate(tx.date)),
                     _InfoRow(label: 'Loại', value: tx.isIncome ? 'Thu nhập' : 'Chi tiêu'),
+                    if (tx.attachmentUrls.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Ảnh chi tiết',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 88,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: tx.attachmentUrls.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(width: 8),
+                          itemBuilder: (context, index) => ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              tx.attachmentUrls[index],
+                              width: 88,
+                              height: 88,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

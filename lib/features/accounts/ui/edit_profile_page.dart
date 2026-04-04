@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/language_service.dart';
+import '../../../core/services/supabase_storage_service.dart';
 import '../state/edit_profile_state.dart';
 import '../state/profile_state.dart';
 
@@ -16,6 +20,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameCtrl;
   late TextEditingController _phoneCtrl;
+  final ImagePicker _imagePicker = ImagePicker();
+
+  XFile? _selectedAvatar;
+  String _currentAvatarUrl = '';
 
   @override
   void initState() {
@@ -23,6 +31,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     final user = AuthService.currentUser;
     _nameCtrl = TextEditingController(text: user?.fullName ?? '');
     _phoneCtrl = TextEditingController(text: user?.phone ?? '');
+    _currentAvatarUrl = user?.avatarUrl ?? '';
   }
 
   @override
@@ -38,9 +47,23 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     ref.read(editProfileSavingProvider.notifier).state = true;
 
     try {
+      String? nextAvatarUrl;
+      if (_selectedAvatar != null) {
+        final uid = AuthService.currentUserId;
+        if (uid == null) {
+          throw Exception('Bạn chưa đăng nhập');
+        }
+        final bytes = await _selectedAvatar!.readAsBytes();
+        nextAvatarUrl = await SupabaseStorageService.uploadAvatar(
+          uid: uid,
+          bytes: bytes,
+        );
+      }
+
       await AuthService.updateCurrentUserProfile(
         fullName: _nameCtrl.text,
         phone: _phoneCtrl.text,
+        avatarUrl: nextAvatarUrl,
       );
 
       ref.read(profileRefreshTickProvider.notifier).state++;
@@ -64,6 +87,53 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       );
       ref.read(editProfileSavingProvider.notifier).state = false;
     }
+  }
+
+  Future<void> _pickAvatar() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt_outlined),
+                  title: Text(
+                    LanguageService.tr(vi: 'Chụp ảnh', en: 'Take photo'),
+                  ),
+                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: Text(
+                    LanguageService.tr(
+                      vi: 'Chọn từ thư viện',
+                      en: 'Choose from gallery',
+                    ),
+                  ),
+                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (source == null) return;
+
+    final file = await _imagePicker.pickImage(
+      source: source,
+      imageQuality: 85,
+    );
+    if (file == null || !mounted) return;
+    setState(() {
+      _selectedAvatar = file;
+    });
   }
 
   @override
@@ -97,28 +167,38 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                         color: scheme.primaryContainer,
                         shape: BoxShape.circle,
                       ),
-                      child: Center(
-                        child: Text(
-                          AuthService.currentUser?.avatarInitials ?? '',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: scheme.primary,
-                          ),
-                        ),
+                      child: ClipOval(
+                        child: _selectedAvatar != null
+                          ? Image.file(
+                            File(_selectedAvatar!.path),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    _avatarInitials(scheme),
+                              )
+                            : (_currentAvatarUrl.trim().isNotEmpty
+                                ? Image.network(
+                                    _currentAvatarUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        _avatarInitials(scheme),
+                                  )
+                                : _avatarInitials(scheme)),
                       ),
                     ),
                     Positioned(
                       bottom: 0,
                       right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: scheme.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                      child: GestureDetector(
+                        onTap: _pickAvatar,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
                         ),
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
                       ),
                     ),
                   ],
@@ -167,6 +247,19 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _avatarInitials(ColorScheme scheme) {
+    return Center(
+      child: Text(
+        AuthService.currentUser?.avatarInitials ?? '',
+        style: TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: scheme.primary,
         ),
       ),
     );

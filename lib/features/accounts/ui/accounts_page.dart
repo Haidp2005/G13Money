@@ -104,15 +104,32 @@ class _HeaderBackground extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.25),
                 border: Border.all(color: Colors.white, width: 3),
               ),
-              child: Center(
-                child: Text(
-                  user.avatarInitials,
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+              child: ClipOval(
+                child: user.avatarUrl.trim().isEmpty
+                    ? Center(
+                        child: Text(
+                          user.avatarInitials,
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
+                    : Image.network(
+                        user.avatarUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Center(
+                          child: Text(
+                            user.avatarInitials,
+                            style: const TextStyle(
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 16),

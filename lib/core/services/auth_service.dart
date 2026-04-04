@@ -287,6 +287,7 @@ class AuthService {
   static Future<void> updateCurrentUserProfile({
     required String fullName,
     required String phone,
+    String? avatarUrl,
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -307,6 +308,7 @@ class AuthService {
         'fullName': normalizedName,
         'phone': normalizedPhone,
         'avatarInitials': initials,
+        if (avatarUrl != null) 'avatarUrl': avatarUrl.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
@@ -317,6 +319,7 @@ class AuthService {
         'fullName': normalizedName,
         'phone': normalizedPhone,
         'avatarInitials': initials,
+        if (avatarUrl != null) 'avatarUrl': avatarUrl.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
@@ -329,6 +332,7 @@ class AuthService {
       fullName: normalizedName,
       phone: normalizedPhone,
       avatarInitials: initials,
+      avatarUrl: avatarUrl ?? _currentUser?.avatarUrl ?? '',
     );
   }
 
@@ -347,6 +351,7 @@ class AuthService {
         email: (user.email ?? '').trim().toLowerCase(),
         phone: '',
         avatarInitials: _buildInitials(fullName),
+        avatarUrl: '',
         joinedDate: now,
       );
 
@@ -355,6 +360,7 @@ class AuthService {
         'email': model.email,
         'phone': model.phone,
         'avatarInitials': model.avatarInitials,
+        'avatarUrl': model.avatarUrl,
         'joinedAt': Timestamp.fromDate(model.joinedDate),
         'currency': 'VND',
         'locale': 'vi',
@@ -370,6 +376,7 @@ class AuthService {
     final email = (data['email'] as String?)?.trim().toLowerCase();
     final phone = (data['phone'] as String?)?.trim();
     final avatarInitials = (data['avatarInitials'] as String?)?.trim();
+    final avatarUrl = (data['avatarUrl'] as String?)?.trim();
     final joinedAt = _asDateTime(data['joinedAt']) ?? now;
 
     return UserModel(
@@ -384,6 +391,7 @@ class AuthService {
       avatarInitials: (avatarInitials == null || avatarInitials.isEmpty)
           ? _buildInitials(fullName ?? _displayNameFromEmail(user.email))
           : avatarInitials,
+      avatarUrl: avatarUrl ?? '',
       joinedDate: joinedAt,
     );
   }
@@ -396,6 +404,7 @@ class AuthService {
       email: (user.email ?? '').trim().toLowerCase(),
       phone: '',
       avatarInitials: _buildInitials(fullName),
+      avatarUrl: '',
       joinedDate: DateTime.now(),
     );
   }

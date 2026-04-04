@@ -4,6 +4,7 @@ class UserModel {
   final String email;
   final String phone;
   final String avatarInitials;
+  final String avatarUrl;
   final DateTime joinedDate;
 
   const UserModel({
@@ -12,6 +13,7 @@ class UserModel {
     required this.email,
     required this.phone,
     required this.avatarInitials,
+    required this.avatarUrl,
     required this.joinedDate,
   });
 
@@ -23,6 +25,7 @@ class UserModel {
     String? email,
     String? phone,
     String? avatarInitials,
+    String? avatarUrl,
     DateTime? joinedDate,
   }) {
     return UserModel(
@@ -31,6 +34,7 @@ class UserModel {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       avatarInitials: avatarInitials ?? this.avatarInitials,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       joinedDate: joinedDate ?? this.joinedDate,
     );
   }

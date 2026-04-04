@@ -231,6 +231,7 @@ class TransactionsRepository {
     required double amount,
     required DateTime date,
     required bool isIncome,
+    List<String> attachmentUrls = const <String>[],
   }) async {
     final uid = AuthService.currentUserId;
     if (uid == null) {
@@ -271,6 +272,7 @@ class TransactionsRepository {
       amount: amount,
       date: date,
       isIncome: isIncome,
+      attachmentUrls: attachmentUrls,
     );
 
     final walletAccount = _findWalletAccountOrThrow(walletName);
@@ -333,6 +335,7 @@ class TransactionsRepository {
     required double amount,
     required DateTime date,
     required bool isIncome,
+    List<String>? attachmentUrls,
   }) async {
     final uid = AuthService.currentUserId;
     if (uid == null) {
@@ -362,6 +365,7 @@ class TransactionsRepository {
       amount: amount,
       date: date,
       isIncome: isIncome,
+      attachmentUrls: attachmentUrls ?? const <String>[],
     );
 
     final primaryDoc = FirebaseFirestore.instance
@@ -387,6 +391,16 @@ class TransactionsRepository {
     }
 
     final oldTx = MoneyTransaction.fromFirestore(id, oldData);
+    final transactionWithAttachments = MoneyTransaction(
+      id: transaction.id,
+      title: transaction.title,
+      category: transaction.category,
+      walletName: transaction.walletName,
+      amount: transaction.amount,
+      date: transaction.date,
+      isIncome: transaction.isIncome,
+      attachmentUrls: attachmentUrls ?? oldTx.attachmentUrls,
+    );
 
     final newWallet = _findWalletAccountOrThrow(walletName);
     final oldWallet = _findWalletAccountOrThrow(oldTx.walletName);
@@ -395,8 +409,8 @@ class TransactionsRepository {
     final newEffect = _signedAmount(isIncome: isIncome, amount: amount);
 
     final batch = FirebaseFirestore.instance.batch();
-    batch.set(primaryDoc, transaction.toFirestore(), SetOptions(merge: true));
-    batch.set(legacyDoc, transaction.toFirestore(), SetOptions(merge: true));
+    batch.set(primaryDoc, transactionWithAttachments.toFirestore(), SetOptions(merge: true));
+    batch.set(legacyDoc, transactionWithAttachments.toFirestore(), SetOptions(merge: true));
 
     final accountsCollection = FirebaseFirestore.instance
         .collection('users')
@@ -454,13 +468,13 @@ class TransactionsRepository {
 
     final existingIndex = _transactions.indexWhere((item) => item.id == id);
     if (existingIndex >= 0) {
-      _transactions[existingIndex] = transaction;
+      _transactions[existingIndex] = transactionWithAttachments;
       _transactions.sort((a, b) => b.date.compareTo(a.date));
     }
 
     _hasLoaded = true;
     _loadedUid = uid;
-    return transaction;
+    return transactionWithAttachments;
   }
 
   Future<void> deleteTransaction(String id) async {
