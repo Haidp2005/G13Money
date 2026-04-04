@@ -25,6 +25,142 @@ class TransactionsRepository {
     return isIncome ? amount.abs() : -amount.abs();
   }
 
+  DateTime? _asDateTime(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    if (value is DateTime) {
+      return value;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>> _loadPreferences(String uid) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('settings')
+        .doc('preferences')
+        .get();
+
+    return snapshot.data() ?? <String, dynamic>{};
+  }
+
+  Future<void> _createNewTransactionNotification({
+    required String uid,
+    required MoneyTransaction transaction,
+    required bool enabled,
+  }) async {
+    if (!enabled) return;
+
+    final notificationId = 'tx_${transaction.id}';
+    final signedAmount =
+        '${transaction.isIncome ? '+' : '-'}${transaction.amount.toStringAsFixed(0)} đ';
+    final title = 'Có Giao dịch mới';
+    final body = 'Có Giao dịch mới: $signedAmount';
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('notifications')
+        .doc(notificationId)
+        .set({
+      'type': 'transaction_new',
+      'title': title,
+      'body': body,
+      'isRead': false,
+      'meta': {
+        'transactionId': transaction.id,
+        'walletName': transaction.walletName,
+        'provider': 'manual',
+      },
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  bool _isAllWalletBudget(String walletName) {
+    final normalizedWallet = walletName.trim().toLowerCase();
+    return normalizedWallet == 'tất cả ví' ||
+        normalizedWallet == 'tất cả loại ví' ||
+        normalizedWallet == 'tat ca vi' ||
+        normalizedWallet == 'all';
+  }
+
+  bool _matchesBudget(Map<String, dynamic> budget, MoneyTransaction tx) {
+    if (tx.isIncome) return false;
+
+    final categoryName = ((budget['categoryName'] as String?) ?? '').trim().toLowerCase();
+    final walletName = ((budget['walletName'] as String?) ?? '').trim();
+    final startDate = _asDateTime(budget['startDate']);
+    final endDate = _asDateTime(budget['endDate']);
+
+    if (categoryName.isEmpty || startDate == null || endDate == null) return false;
+    if (tx.category.trim().toLowerCase() != categoryName) return false;
+    if (tx.date.isBefore(startDate) || tx.date.isAfter(endDate)) return false;
+
+    if (_isAllWalletBudget(walletName)) {
+      return true;
+    }
+
+    return tx.walletName.trim().toLowerCase() == walletName.toLowerCase();
+  }
+
+  Future<void> _syncBudgetThresholdNotifications({
+    required String uid,
+    required List<MoneyTransaction> allTransactions,
+    required bool budgetAlertsEnabled,
+    required int thresholdPercent,
+  }) async {
+    if (!budgetAlertsEnabled) return;
+
+    final budgetsSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('budgets')
+        .get();
+
+    for (final doc in budgetsSnapshot.docs) {
+      final data = doc.data();
+      final limit = (data['limit'] as num?)?.toDouble() ?? 0;
+      if (limit <= 0) continue;
+
+      final matchedSpent = allTransactions
+          .where((tx) => _matchesBudget(data, tx))
+          .fold<double>(0, (total, tx) => total + tx.amount);
+
+      final usagePercent = (matchedSpent / limit) * 100;
+      if (usagePercent < thresholdPercent) continue;
+
+      final startDate = _asDateTime(data['startDate']);
+      final periodKey = startDate == null
+          ? DateTime.now().toIso8601String().substring(0, 7)
+          : '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}';
+      final notificationId = 'budget_threshold_${doc.id}_$periodKey';
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('notifications')
+          .doc(notificationId)
+          .set({
+        'type': 'budget_alert',
+        'title': 'Đạt ngưỡng ngân sách',
+        'body':
+            'Ngân sách ${data['title'] ?? ''} đã dùng ${usagePercent.toStringAsFixed(0)}% (ngưỡng $thresholdPercent%)',
+        'isRead': false,
+        'meta': {
+          'budgetId': doc.id,
+          'thresholdPercent': thresholdPercent,
+          'usagePercent': usagePercent,
+          'periodKey': periodKey,
+        },
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+  }
+
   Account _findWalletAccountOrThrow(String walletName) {
     final normalized = _normalizeWalletName(walletName);
     final account = AccountsRepository.instance.accounts
@@ -162,7 +298,28 @@ class TransactionsRepository {
 
     await AccountsRepository.instance.loadAccounts(forceRefresh: true);
 
-    _transactions.insert(0, transaction);
+    final prefs = await _loadPreferences(uid);
+    final transactionAlertsEnabled =
+        (prefs['transactionAlerts'] as bool?) ?? true;
+    final budgetAlertsEnabled = (prefs['budgetAlerts'] as bool?) ?? true;
+    final thresholdPercent =
+        ((prefs['budgetAlertThresholdPercent'] as num?)?.toInt() ?? 80)
+            .clamp(1, 100);
+
+    await _createNewTransactionNotification(
+      uid: uid,
+      transaction: transaction,
+      enabled: transactionAlertsEnabled,
+    );
+
+    final latestTransactions = await loadTransactions(forceRefresh: true);
+    await _syncBudgetThresholdNotifications(
+      uid: uid,
+      allTransactions: latestTransactions,
+      budgetAlertsEnabled: budgetAlertsEnabled,
+      thresholdPercent: thresholdPercent,
+    );
+
     _hasLoaded = true;
     _loadedUid = uid;
     return transaction;
@@ -281,6 +438,20 @@ class TransactionsRepository {
     await batch.commit();
     await AccountsRepository.instance.loadAccounts(forceRefresh: true);
 
+    final prefs = await _loadPreferences(uid);
+    final budgetAlertsEnabled = (prefs['budgetAlerts'] as bool?) ?? true;
+    final thresholdPercent =
+        ((prefs['budgetAlertThresholdPercent'] as num?)?.toInt() ?? 80)
+            .clamp(1, 100);
+
+    final latestTransactions = await loadTransactions(forceRefresh: true);
+    await _syncBudgetThresholdNotifications(
+      uid: uid,
+      allTransactions: latestTransactions,
+      budgetAlertsEnabled: budgetAlertsEnabled,
+      thresholdPercent: thresholdPercent,
+    );
+
     final existingIndex = _transactions.indexWhere((item) => item.id == id);
     if (existingIndex >= 0) {
       _transactions[existingIndex] = transaction;
@@ -290,5 +461,73 @@ class TransactionsRepository {
     _hasLoaded = true;
     _loadedUid = uid;
     return transaction;
+  }
+
+  Future<void> deleteTransaction(String id) async {
+    final uid = AuthService.currentUserId;
+    if (uid == null) {
+      throw Exception('Bạn chưa đăng nhập');
+    }
+
+    await AccountsRepository.instance.loadAccounts(forceRefresh: true);
+
+    final primaryDoc = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection(_transactionCollection)
+        .doc(id);
+
+    final legacyDoc = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection(_legacyTransactionCollection)
+        .doc(id);
+
+    final primarySnapshot = await primaryDoc.get();
+    Map<String, dynamic>? oldData = primarySnapshot.data();
+    if (oldData == null) {
+      final legacySnapshot = await legacyDoc.get();
+      oldData = legacySnapshot.data();
+    }
+    if (oldData == null) {
+      throw Exception('Không tìm thấy giao dịch để xoá');
+    }
+
+    final oldTx = MoneyTransaction.fromFirestore(id, oldData);
+    final wallet = _findWalletAccountOrThrow(oldTx.walletName);
+    final oldEffect = _signedAmount(isIncome: oldTx.isIncome, amount: oldTx.amount);
+    final updatedBalance = wallet.balance - oldEffect;
+
+    final walletDoc = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('accounts')
+        .doc(wallet.id);
+
+    final batch = FirebaseFirestore.instance.batch();
+    batch.delete(primaryDoc);
+    batch.delete(legacyDoc);
+    batch.set(
+      walletDoc,
+      {
+        'balance': updatedBalance,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+    batch.delete(
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('notifications')
+          .doc('tx_$id'),
+    );
+    await batch.commit();
+
+    await AccountsRepository.instance.loadAccounts(forceRefresh: true);
+
+    _transactions.removeWhere((item) => item.id == id);
+    _hasLoaded = true;
+    _loadedUid = uid;
   }
 }

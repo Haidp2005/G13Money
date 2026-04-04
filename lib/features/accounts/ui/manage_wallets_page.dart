@@ -221,64 +221,203 @@ class _AccountFormSheetState extends ConsumerState<_AccountFormSheet> {
   @override
   Widget build(BuildContext context) {
     final selectedType = ref.watch(accountFormTypeProvider);
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 12,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+    final isEdit = widget.initial != null;
+    
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      LanguageService.tr(
+                        vi: isEdit ? 'Sửa thông tin ví' : 'Thêm ví mới', 
+                        en: isEdit ? 'Edit wallet' : 'Add new wallet'
+                      ),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF171A21),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F3F8),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF5A5F6E)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                
+                // Name Input
+                Text(
+                  LanguageService.tr(vi: 'Tên ví/tài khoản', en: 'Wallet/account name'),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF5A5F6E)),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F8FB),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE8EAF0)),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: TextFormField(
+                    controller: _nameCtrl,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF171A21)),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: LanguageService.tr(vi: 'Ví dụ: Tiền mặt, VIB, Momo...', en: 'Eg: Cash, Bank, PayPal...'),
+                      hintStyle: const TextStyle(color: Color(0xFF8C919E), fontWeight: FontWeight.normal),
+                    ),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? LanguageService.tr(vi: 'Vui lòng nhập tên', en: 'Please enter name')
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // Type Selector
+                Text(
+                  LanguageService.tr(vi: 'Loại tài khoản', en: 'Account type'),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF5A5F6E)),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _buildTypeChip('cash', Icons.payments_outlined, LanguageService.tr(vi: 'Tiền mặt', en: 'Cash'), selectedType),
+                    const SizedBox(width: 8),
+                    _buildTypeChip('bank', Icons.account_balance_outlined, LanguageService.tr(vi: 'Ngân hàng', en: 'Bank'), selectedType),
+                    const SizedBox(width: 8),
+                    _buildTypeChip('ewallet', Icons.account_balance_wallet_outlined, LanguageService.tr(vi: 'Ví điện tử', en: 'E-Wallet'), selectedType),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                
+                // Balance Input
+                Text(
+                  LanguageService.tr(vi: 'Số dư ban đầu', en: 'Initial balance'),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF5A5F6E)),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F8FB),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE8EAF0)),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'đ',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF22B45E)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _balanceCtrl,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF22B45E)),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: '0',
+                            hintStyle: TextStyle(color: const Color(0xFF22B45E).withValues(alpha: 0.5)),
+                          ),
+                          validator: (v) {
+                            final parsed = double.tryParse((v ?? '').replaceAll(',', '').trim());
+                            if (parsed == null || parsed < 0) {
+                              return LanguageService.tr(vi: 'Số dư không hợp lệ', en: 'Invalid balance');
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                
+                // Submit Button
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _submit,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF22B45E),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      LanguageService.tr(vi: 'Lưu ví', en: 'Save wallet'),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        child: Form(
-          key: _formKey,
+      ),
+    );
+  }
+
+  Widget _buildTypeChip(String type, IconData icon, String label, String selectedType) {
+    final isSelected = type == selectedType;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => ref.read(accountFormTypeProvider.notifier).state = type,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF22B45E).withValues(alpha: 0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected ? const Color(0xFF22B45E) : const Color(0xFFE8EAF0),
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: InputDecoration(
-                  labelText: LanguageService.tr(vi: 'Tên ví/tài khoản', en: 'Wallet/account name'),
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? LanguageService.tr(vi: 'Vui lòng nhập tên', en: 'Please enter name')
-                    : null,
+              Icon(
+                icon,
+                size: 24,
+                color: isSelected ? const Color(0xFF22B45E) : const Color(0xFF8C919E),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: selectedType,
-                decoration: InputDecoration(
-                  labelText: LanguageService.tr(vi: 'Loại', en: 'Type'),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                  DropdownMenuItem(value: 'bank', child: Text('Bank')),
-                  DropdownMenuItem(value: 'ewallet', child: Text('E-wallet')),
-                ],
-                onChanged: (v) {
-                  if (v != null) {
-                    ref.read(accountFormTypeProvider.notifier).state = v;
-                  }
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _balanceCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Số dư'),
-                validator: (v) {
-                  final parsed = double.tryParse((v ?? '').replaceAll(',', '').trim());
-                  if (parsed == null || parsed < 0) {
-                    return LanguageService.tr(vi: 'Số dư không hợp lệ', en: 'Invalid balance');
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _submit,
-                  child: Text(LanguageService.tr(vi: 'Lưu', en: 'Save')),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? const Color(0xFF22B45E) : const Color(0xFF5A5F6E),
                 ),
               ),
             ],

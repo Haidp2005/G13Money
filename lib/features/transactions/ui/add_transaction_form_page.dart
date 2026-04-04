@@ -258,29 +258,159 @@ class _AddTransactionFormPageState extends ConsumerState<AddTransactionFormPage>
       return;
     }
 
+    final walletColors = [
+      const Color(0xFF22B45E),
+      const Color(0xFF4F6EF7),
+      const Color(0xFFFF8C42),
+      const Color(0xFFE040FB),
+      const Color(0xFF00BCD4),
+      const Color(0xFFFF5252),
+    ];
+
     final selected = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: _wallets.length,
-              separatorBuilder: (context, index) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final wallet = _wallets[index];
-                return ListTile(
-                  leading: const Icon(Icons.account_balance_wallet_outlined),
-                  title: Text(wallet.name),
-                    trailing: wallet.name == selectedWalletName
-                      ? const Icon(Icons.check_circle, color: Color(0xFF22B45E))
-                      : null,
-                  onTap: () => Navigator.of(context).pop(wallet.name),
-                );
-              },
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Header
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Chọn ví',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF171A21),
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F3F8),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF5A5F6E)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // ── Wallet list
+                ...List.generate(_wallets.length, (index) {
+                  final wallet = _wallets[index];
+                  final isSelected = wallet.name == selectedWalletName;
+                  final avatarColor = walletColors[index % walletColors.length];
+
+                  return GestureDetector(
+                    onTap: () => Navigator.of(context).pop(wallet.name),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF22B45E).withValues(alpha: 0.07)
+                            : const Color(0xFFF7F8FB),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFF22B45E).withValues(alpha: 0.5)
+                              : const Color(0xFFE8EAF0),
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          // Avatar icon
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  avatarColor.withValues(alpha: 0.85),
+                                  avatarColor,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: avatarColor.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.account_balance_wallet_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          // Name
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  wallet.name,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                    color: const Color(0xFF171A21),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  LanguageService.tr(vi: 'Ví cá nhân', en: 'Personal wallet'),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF8C919E),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Checkmark
+                          if (isSelected)
+                            Container(
+                              width: 26,
+                              height: 26,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF22B45E),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.check_rounded, color: Colors.white, size: 16),
+                            )
+                          else
+                            const SizedBox(width: 26),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ],
             ),
           ),
         );

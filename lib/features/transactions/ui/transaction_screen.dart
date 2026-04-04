@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'reports_screen.dart';
-import 'add_transaction_form_page.dart';
+import 'transaction_detail_page.dart';
 import '../models/transaction.dart';
 import '../state/transaction_filter_state.dart';
 import '../state/transactions_provider.dart';
@@ -18,71 +18,6 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   _SearchScope _searchScope = _SearchScope.all;
-
-  // Dummy Data for demonstration
-  final List<Map<String, dynamic>> _groupedTransactions = [
-    {
-      'dateStr': 'Hôm nay, 12/03/2026',
-      'totalAmount': '-100,000 ₫',
-      'isIncome': false,
-      'transactions': [
-        {
-          'icon': Icons.local_cafe,
-          'categoryColor': Colors.orange,
-          'title': 'Cà phê sáng',
-          'note': 'Cà phê với đối tác',
-          'amount': 45000.0,
-          'isIncome': false,
-        },
-        {
-          'icon': Icons.directions_bus,
-          'categoryColor': Colors.blue,
-          'title': 'Xe buýt',
-          'note': 'Vé tháng',
-          'amount': 55000.0,
-          'isIncome': false,
-        },
-      ]
-    },
-    {
-      'dateStr': 'Hôm qua, 11/03/2026',
-      'totalAmount': '+12,500,000 ₫',
-      'isIncome': true,
-      'transactions': [
-        {
-          'icon': Icons.monetization_on,
-          'categoryColor': Colors.green,
-          'title': 'Lương tháng',
-          'note': 'Lương tháng 3/2026',
-          'amount': 15000000.0,
-          'isIncome': true,
-        },
-        {
-          'icon': Icons.shopping_cart,
-          'categoryColor': Colors.redAccent,
-          'title': 'Siêu thị',
-          'note': 'Mua đồ ăn tuần',
-          'amount': 2500000.0,
-          'isIncome': false,
-        },
-      ]
-    },
-    {
-      'dateStr': '10/03/2026',
-      'totalAmount': '-200,000 ₫',
-      'isIncome': false,
-      'transactions': [
-        {
-          'icon': Icons.movie,
-          'categoryColor': Colors.purple,
-          'title': 'Xem phim',
-          'note': 'CGV Landmark',
-          'amount': 200000.0,
-          'isIncome': false,
-        },
-      ]
-    }
-  ];
 
   List<Map<String, dynamic>> _groupTransactions(
     List<MoneyTransaction> transactions,
@@ -228,9 +163,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
       _searchQuery,
       _searchScope,
     );
-    final groupedData = remoteTransactions.isEmpty
-        ? _groupedTransactions
-        : _groupTransactions(filteredTransactions);
+    final groupedData = _groupTransactions(filteredTransactions);
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,
@@ -388,7 +321,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    'Không thể tải giao dịch mới nhất. Đang hiển thị dữ liệu cục bộ.',
+                    'Không thể tải giao dịch mới nhất. Vui lòng thử lại.',
                     style: TextStyle(
                       color: scheme.onErrorContainer,
                       fontSize: 13,
@@ -439,23 +372,15 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                           isIncome: tx['isIncome'],
                           onTap: () async {
                             final original = tx['tx'] as MoneyTransaction;
-                            final updated = await Navigator.push<bool>(
+                            final changed = await Navigator.push<bool>(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => AddTransactionFormPage(
-                                  initialData: TransactionFormInitialData(
-                                    transactionId: original.id,
-                                    note: original.title,
-                                    walletName: original.walletName,
-                                    category: original.category,
-                                    amount: original.amount,
-                                    date: original.date,
-                                    isIncome: original.isIncome,
-                                  ),
+                                builder: (_) => TransactionDetailPage(
+                                  transaction: original,
                                 ),
                               ),
                             );
-                            if (updated == true) {
+                            if (changed == true) {
                               await ref
                                   .read(transactionsControllerProvider.notifier)
                                   .refresh();

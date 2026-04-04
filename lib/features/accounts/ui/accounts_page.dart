@@ -303,7 +303,7 @@ class _MenuCard extends StatelessWidget {
       _SettingEntry(
         icon: Icons.notifications_outlined,
         title: LanguageService.tr(vi: 'Thông báo', en: 'Notifications'),
-        subtitle: LanguageService.tr(vi: 'Quản lý thông báo', en: 'Manage notifications'),
+        subtitle: LanguageService.tr(vi: 'Cài đặt cảnh báo giao dịch & ngân sách', en: 'Configure transaction & budget alerts'),
       ),
       _SettingEntry(
         icon: Icons.savings_outlined,
@@ -405,7 +405,7 @@ class _MenuCard extends StatelessWidget {
                 } else if (item.icon == Icons.category_outlined) {
                   Navigator.pushNamed(context, AppRoutes.manageCategories);
                 } else if (item.icon == Icons.notifications_outlined) {
-                  Navigator.pushNamed(context, AppRoutes.notifications);
+                  Navigator.pushNamed(context, AppRoutes.notificationSettings);
                 } else if (item.icon == Icons.lock_outline) {
                   Navigator.pushNamed(context, AppRoutes.changePassword);
                 } else if (item.icon == Icons.language_outlined) {

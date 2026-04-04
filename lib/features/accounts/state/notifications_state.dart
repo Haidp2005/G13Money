@@ -49,7 +49,7 @@ class BankNotificationsController extends AsyncNotifier<NotificationsViewData> {
           'isRead': true,
           'reviewStatus': 'done',
           'body': LanguageService.tr(
-            vi: 'Da cap nhat giao dich ngan hang',
+            vi: 'Đã cập nhật giao dịch ngân hàng',
             en: 'Bank transaction has been updated',
           ),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -66,7 +66,7 @@ class BankNotificationsController extends AsyncNotifier<NotificationsViewData> {
     final uid = AuthService.currentUserId;
     if (uid == null) {
       throw Exception(
-        LanguageService.tr(vi: 'Ban chua dang nhap', en: 'You are not logged in'),
+        LanguageService.tr(vi: 'Bạn chưa đăng nhập', en: 'You are not logged in'),
       );
     }
 

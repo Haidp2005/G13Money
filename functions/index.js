@@ -21,8 +21,24 @@ function toDate(value) {
   return date;
 }
 
+function parseAmount(value) {
+  if (value === null || value === undefined) return NaN;
+  if (typeof value === "number") return value;
+  const normalized = String(value)
+    .trim()
+    .replace(/\s+/g, "")
+    .replace(/[^0-9,.-]/g, "")
+    .replace(/,/g, "");
+  if (!normalized) return NaN;
+  return Number(normalized);
+}
+
 function normalizeDocId(input) {
   return String(input).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 120);
+}
+
+function signedAmount(isIncome, amount) {
+  return isIncome ? Math.abs(amount) : -Math.abs(amount);
 }
 
 exports.sepayWebhook = onRequest({ cors: true }, async (req, res) => {
@@ -49,13 +65,34 @@ exports.sepayWebhook = onRequest({ cors: true }, async (req, res) => {
       "reference",
     ], Date.now().toString());
 
-    const amount = Number(
-      pick(payload, ["amount", "credit_amount", "in_amount", "money"], "0"),
+    const transferTypeRaw = String(
+      pick(payload, ["transferType", "transfer_type", "direction"], ""),
+    ).trim().toLowerCase();
+
+    const incomingAmount = parseAmount(
+      pick(payload, ["credit_amount", "in_amount", "amount_in"], ""),
     );
+    const outgoingAmount = parseAmount(
+      pick(payload, ["debit_amount", "out_amount", "amount_out"], ""),
+    );
+    const genericAmount = parseAmount(
+      pick(payload, ["amount", "money", "transferAmount", "transfer_amount"], "0"),
+    );
+
+    let isOutgoing = transferTypeRaw === "out" || transferTypeRaw === "debit";
+    if (!isOutgoing && Number.isFinite(outgoingAmount) && outgoingAmount > 0) {
+      isOutgoing = true;
+    }
+
+    const amount = Number.isFinite(genericAmount) && genericAmount > 0
+      ? genericAmount
+      : (isOutgoing ? outgoingAmount : incomingAmount);
 
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ ok: false, message: "Invalid amount" });
     }
+
+    const isIncome = !isOutgoing;
 
     const accountNumber = String(
       pick(payload, ["account_number", "virtual_account", "accountNo", "bank_account"], ""),
@@ -109,11 +146,11 @@ exports.sepayWebhook = onRequest({ cors: true }, async (req, res) => {
 
     const txId = normalizeDocId(`sepay_${rawTxId}`);
     const txPayload = {
-      title: transferContent || "Thu tien tu SePay",
+      title: transferContent || (isIncome ? "Thu tien tu SePay" : "Chi tien tu SePay"),
       note: "Dong bo tu SePay webhook",
       amount,
-      type: "income",
-      isIncome: true,
+      type: isIncome ? "income" : "expense",
+      isIncome,
       categoryId,
       categoryName,
       walletId,
@@ -130,6 +167,8 @@ exports.sepayWebhook = onRequest({ cors: true }, async (req, res) => {
         transactionId: String(rawTxId),
         accountNumber,
         bankCode,
+        transferType: transferTypeRaw,
+        ingestMode: "manual_like",
       },
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -139,7 +178,7 @@ exports.sepayWebhook = onRequest({ cors: true }, async (req, res) => {
     const notificationPayload = {
       type: "system",
       title: "Nhan thong bao ngan hang",
-      body: `Da nhan ${amount} VND tu SePay vao vi ${walletName}`,
+      body: `Co Giao dich moi: ${isIncome ? "+" : "-"}${amount} VND`,
       isRead: false,
       meta: {
         provider: "sepay",
@@ -149,11 +188,101 @@ exports.sepayWebhook = onRequest({ cors: true }, async (req, res) => {
     };
 
     const db = admin.firestore();
+    const preferencesDoc = await db.doc(`users/${uid}/settings/preferences`).get();
+    const shouldNotifyNewTransaction =
+      (preferencesDoc.data()?.transactionAlerts ?? true) !== false;
+
+    const primaryTxDoc = db.doc(`users/${uid}/GiaoDich/${txId}`);
+    const accountsCollection = db.collection(`users/${uid}/accounts`);
+    const targetWalletDoc = accountsCollection.doc(walletId);
+
+    const existingTxSnapshot = await primaryTxDoc.get();
+    const existingTx = existingTxSnapshot.exists ? existingTxSnapshot.data() : null;
+
+    const oldWalletId = String(existingTx?.walletId || "").trim();
+    const oldAmount = Number(existingTx?.amount || 0);
+    const oldIsIncome = Boolean(existingTx?.isIncome);
+
+    const oldEffect = existingTx ? signedAmount(oldIsIncome, oldAmount) : 0;
+    const newEffect = signedAmount(isIncome, amount);
+
+    const walletIdsToRead = new Set([walletId]);
+    if (oldWalletId) {
+      walletIdsToRead.add(oldWalletId);
+    }
+
+    const walletSnapshots = await Promise.all(
+      Array.from(walletIdsToRead).map((id) => accountsCollection.doc(id).get()),
+    );
+
+    const walletById = {};
+    for (const snap of walletSnapshots) {
+      walletById[snap.id] = snap;
+    }
+
     const batch = db.batch();
 
-    batch.set(db.doc(`users/${uid}/GiaoDich/${txId}`), txPayload, { merge: true });
+    batch.set(primaryTxDoc, txPayload, { merge: true });
     batch.set(db.doc(`users/${uid}/transactions/${txId}`), txPayload, { merge: true });
-    batch.set(db.doc(`users/${uid}/notifications/${notificationId}`), notificationPayload, { merge: true });
+    if (shouldNotifyNewTransaction) {
+      batch.set(db.doc(`users/${uid}/notifications/${notificationId}`), notificationPayload, { merge: true });
+    }
+
+    if (!oldWalletId || oldWalletId === walletId) {
+      const walletSnap = walletById[walletId];
+      const currentBalance = Number(walletSnap?.data()?.balance || 0);
+      const nextBalance = currentBalance - oldEffect + newEffect;
+      batch.set(
+        targetWalletDoc,
+        {
+          name: walletName,
+          type: String(walletSnap?.data()?.type || "bank"),
+          colorHex: String(walletSnap?.data()?.colorHex || "#0D7377"),
+          isArchived: Boolean(walletSnap?.data()?.isArchived || false),
+          balance: nextBalance,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: walletSnap?.exists
+            ? walletSnap.data()?.createdAt || admin.firestore.FieldValue.serverTimestamp()
+            : admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    } else {
+      const oldWalletSnap = walletById[oldWalletId];
+      const newWalletSnap = walletById[walletId];
+      const oldWalletCurrentBalance = Number(oldWalletSnap?.data()?.balance || 0);
+      const newWalletCurrentBalance = Number(newWalletSnap?.data()?.balance || 0);
+
+      batch.set(
+        accountsCollection.doc(oldWalletId),
+        {
+          balance: oldWalletCurrentBalance - oldEffect,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: oldWalletSnap?.exists
+            ? oldWalletSnap.data()?.createdAt || admin.firestore.FieldValue.serverTimestamp()
+            : admin.firestore.FieldValue.serverTimestamp(),
+          isArchived: Boolean(oldWalletSnap?.data()?.isArchived || false),
+        },
+        { merge: true },
+      );
+
+      batch.set(
+        targetWalletDoc,
+        {
+          name: walletName,
+          type: String(newWalletSnap?.data()?.type || "bank"),
+          colorHex: String(newWalletSnap?.data()?.colorHex || "#0D7377"),
+          isArchived: Boolean(newWalletSnap?.data()?.isArchived || false),
+          balance: newWalletCurrentBalance + newEffect,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdAt: newWalletSnap?.exists
+            ? newWalletSnap.data()?.createdAt || admin.firestore.FieldValue.serverTimestamp()
+            : admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+    }
+
     batch.set(
       db.doc(`sepay_events/${txId}`),
       {

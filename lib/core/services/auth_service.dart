@@ -7,6 +7,86 @@ import 'language_service.dart';
 class AuthService {
   AuthService._();
 
+  static const List<_DefaultCategorySeed> _defaultCategorySeeds = [
+    _DefaultCategorySeed(
+      id: 'default-expense-food',
+      name: 'Ăn uống',
+      type: 'expense',
+      iconKey: 'restaurant',
+      colorHex: '#E07A5F',
+    ),
+    _DefaultCategorySeed(
+      id: 'default-expense-transport',
+      name: 'Di chuyển',
+      type: 'expense',
+      iconKey: 'directions_car',
+      colorHex: '#3D5A80',
+    ),
+    _DefaultCategorySeed(
+      id: 'default-expense-shopping',
+      name: 'Mua sắm',
+      type: 'expense',
+      iconKey: 'shopping_bag',
+      colorHex: '#9B5DE5',
+    ),
+    _DefaultCategorySeed(
+      id: 'default-expense-home',
+      name: 'Nhà ở',
+      type: 'expense',
+      iconKey: 'home',
+      colorHex: '#81B29A',
+    ),
+    _DefaultCategorySeed(
+      id: 'default-expense-entertainment',
+      name: 'Giải trí',
+      type: 'expense',
+      iconKey: 'category',
+      colorHex: '#FF6B6B',
+    ),
+    _DefaultCategorySeed(
+      id: 'default-expense-health',
+      name: 'Sức khỏe',
+      type: 'expense',
+      iconKey: 'health',
+      colorHex: '#EF476F',
+    ),
+    _DefaultCategorySeed(
+      id: 'default-expense-education',
+      name: 'Giáo dục',
+      type: 'expense',
+      iconKey: 'education',
+      colorHex: '#118AB2',
+    ),
+    _DefaultCategorySeed(
+      id: 'default-expense-bills',
+      name: 'Hóa đơn',
+      type: 'expense',
+      iconKey: 'bill',
+      colorHex: '#073B4C',
+    ),
+    _DefaultCategorySeed(
+      id: 'default-income-salary',
+      name: 'Lương',
+      type: 'income',
+      iconKey: 'payments',
+      colorHex: '#2DCC5A',
+    ),
+    _DefaultCategorySeed(
+      id: 'default-income-bonus',
+      name: 'Thưởng',
+      type: 'income',
+      iconKey: 'card_giftcard',
+      colorHex: '#F09928',
+    ),
+    _DefaultCategorySeed(
+      id: 'default-income-other',
+      name: 'Thu nhập khác',
+      type: 'income',
+      iconKey: 'moving',
+      colorHex: '#0D7377',
+    ),
+  ];
+
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
@@ -37,6 +117,125 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       throw Exception(_authErrorMessage(e.code));
     }
+  }
+
+  static Future<UserModel> register({
+    required String fullName,
+    required String phone,
+    required String email,
+    required String password,
+  }) async {
+    User? createdUser;
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      final user = credential.user;
+      if (user == null) {
+        throw Exception(
+          LanguageService.tr(
+            vi: 'Không thể tạo tài khoản. Vui lòng thử lại',
+            en: 'Could not create account. Please try again',
+          ),
+        );
+      }
+      createdUser = user;
+
+      final normalizedName = fullName.trim();
+      final normalizedPhone = phone.trim();
+      if (normalizedName.isNotEmpty) {
+        await user.updateDisplayName(normalizedName);
+      }
+
+      await _createInitialUserDocs(
+        user: user,
+        fullName: normalizedName,
+        phone: normalizedPhone,
+      );
+
+      _currentUser = await _upsertAndReadUserModel(user);
+
+      return _currentUser!;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_authErrorMessage(e.code));
+    } catch (e) {
+      if (createdUser != null) {
+        try {
+          await createdUser.delete();
+        } catch (_) {
+          // Ignore cleanup errors and still surface the original failure.
+        }
+        await _auth.signOut();
+      }
+      throw Exception(
+        LanguageService.tr(
+          vi: 'Tạo người dùng thất bại. Vui lòng thử lại',
+          en: 'Failed to create user profile. Please try again',
+        ),
+      );
+    }
+  }
+
+  static Future<void> _createInitialUserDocs({
+    required User user,
+    required String fullName,
+    required String phone,
+  }) async {
+    final normalizedName = fullName.trim().isEmpty
+        ? _displayNameFromEmail(user.email)
+        : fullName.trim();
+    final normalizedPhone = phone.trim();
+
+    final userDoc = _db.collection('users').doc(user.uid);
+    final profileDoc = userDoc.collection('settings').doc('profile');
+    final preferencesDoc = userDoc.collection('settings').doc('preferences');
+    final categoriesCollection = userDoc.collection('categories');
+
+    final batch = _db.batch();
+    batch.set(userDoc, {
+      'fullName': normalizedName,
+      'email': (user.email ?? '').trim().toLowerCase(),
+      'phone': normalizedPhone,
+      'avatarInitials': _buildInitials(normalizedName),
+      'joinedAt': Timestamp.fromDate(DateTime.now()),
+      'currency': 'VND',
+      'locale': 'vi',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    batch.set(profileDoc, {
+      'fullName': normalizedName,
+      'phone': normalizedPhone,
+      'avatarInitials': _buildInitials(normalizedName),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    batch.set(preferencesDoc, {
+      'transactionAlerts': true,
+      'language': 'vi',
+      'themeMode': 'system',
+      'budgetAlerts': true,
+      'budgetAlertThresholdPercent': 80,
+      'dailyReminder': false,
+      'billReminder': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    for (final item in _defaultCategorySeeds) {
+      batch.set(categoriesCollection.doc(item.id), {
+        'name': item.name,
+        'type': item.type,
+        'iconKey': item.iconKey,
+        'colorHex': item.colorHex,
+        'isDefault': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+
+    await batch.commit();
   }
 
   static Future<void> logout() async {
@@ -243,6 +442,21 @@ class AuthService {
           vi: 'Bạn thử lại sau ít phút',
           en: 'Too many attempts, try again later',
         );
+      case 'email-already-in-use':
+        return LanguageService.tr(
+          vi: 'Email đã được sử dụng',
+          en: 'This email is already in use',
+        );
+      case 'weak-password':
+        return LanguageService.tr(
+          vi: 'Mật khẩu quá yếu, vui lòng chọn mật khẩu mạnh hơn',
+          en: 'Password is too weak, please choose a stronger password',
+        );
+      case 'invalid-email':
+        return LanguageService.tr(
+          vi: 'Địa chỉ email không hợp lệ',
+          en: 'Invalid email address',
+        );
       case 'requires-recent-login':
         return LanguageService.tr(
           vi: 'Vui lòng đăng nhập lại để tiếp tục',
@@ -270,4 +484,20 @@ class AuthService {
     final last = parts.last[0];
     return (first + last).toUpperCase();
   }
+}
+
+class _DefaultCategorySeed {
+  final String id;
+  final String name;
+  final String type;
+  final String iconKey;
+  final String colorHex;
+
+  const _DefaultCategorySeed({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.iconKey,
+    required this.colorHex,
+  });
 }

@@ -96,11 +96,11 @@ async function signJwt(payload, privateKeyPem) {
   return `${signingInput}.${signaturePart}`;
 }
 
-async function getAccessToken(env) {
+async function getAccessToken(env, scopes = ["https://www.googleapis.com/auth/datastore"]) {
   const now = Math.floor(Date.now() / 1000);
   const payload = {
     iss: env.FIREBASE_CLIENT_EMAIL,
-    scope: "https://www.googleapis.com/auth/datastore",
+    scope: scopes.join(" "),
     aud: "https://oauth2.googleapis.com/token",
     exp: now + 3600,
     iat: now,
@@ -156,7 +156,13 @@ function firestoreFields(obj) {
 }
 
 async function patchDoc(env, token, docPath, data) {
-  const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${docPath}`;
+  const url = new URL(
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${docPath}`,
+  );
+  for (const key of Object.keys(data)) {
+    url.searchParams.append("updateMask.fieldPaths", key);
+  }
+
   const response = await fetch(url, {
     method: "PATCH",
     headers: {
@@ -168,6 +174,116 @@ async function patchDoc(env, token, docPath, data) {
 
   if (!response.ok) {
     throw new Error(`Firestore patch failed (${docPath}): ${response.status} ${await response.text()}`);
+  }
+}
+
+async function getDoc(env, token, docPath) {
+  const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${docPath}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    },
+  });
+
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`Firestore get failed (${docPath}): ${response.status} ${await response.text()}`);
+  }
+  return response.json();
+}
+
+function fieldString(fields, key, fallback = "") {
+  const value = fields?.[key];
+  if (!value) return fallback;
+  if (typeof value.stringValue === "string") return value.stringValue;
+  return fallback;
+}
+
+function fieldBool(fields, key, fallback = false) {
+  const value = fields?.[key];
+  if (!value) return fallback;
+  if (typeof value.booleanValue === "boolean") return value.booleanValue;
+  return fallback;
+}
+
+function fieldNumber(fields, key, fallback = 0) {
+  const value = fields?.[key];
+  if (!value) return fallback;
+  if (typeof value.doubleValue === "number") return value.doubleValue;
+  if (typeof value.integerValue === "string") return Number(value.integerValue);
+  return fallback;
+}
+
+function signedAmount(isIncome, amount) {
+  return isIncome ? Math.abs(amount) : -Math.abs(amount);
+}
+
+async function listActiveDeviceTokens(env, token, uid) {
+  const url = new URL(
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/users/${uid}/devices`,
+  );
+  url.searchParams.set("pageSize", "100");
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    },
+  });
+
+  if (response.status === 404) return [];
+  if (!response.ok) {
+    throw new Error(`List devices failed: ${response.status} ${await response.text()}`);
+  }
+
+  const data = await response.json();
+  const docs = Array.isArray(data.documents) ? data.documents : [];
+
+  return docs
+    .map((doc) => doc?.fields ?? {})
+    .map((fields) => ({
+      token: fieldString(fields, "token", ""),
+      active: fieldBool(fields, "active", true),
+      platform: fieldString(fields, "platform", ""),
+    }))
+    .filter((item) => item.active && item.token.trim().length > 0)
+    .filter((item) => item.platform === "" || item.platform === "android")
+    .map((item) => item.token);
+}
+
+async function sendFcmToToken(env, token, deviceToken, title, body, data = {}) {
+  const endpoint = `https://fcm.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/messages:send`;
+  const payload = {
+    message: {
+      token: deviceToken,
+      notification: {
+        title,
+        body,
+      },
+      android: {
+        priority: "HIGH",
+        notification: {
+          channel_id: "g13money_default_channel",
+        },
+      },
+      data,
+    },
+  };
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`FCM send failed: ${response.status} ${await response.text()}`);
   }
 }
 
@@ -310,32 +426,6 @@ export default {
         "data.reference",
       ], Date.now().toString());
 
-      const amount = parseAmount(
-        pickDeep(payload, [
-          "amount",
-          "credit_amount",
-          "in_amount",
-          "money",
-          "transferAmount",
-          "transfer_amount",
-          "amount_in",
-          "data.amount",
-          "data.credit_amount",
-          "data.in_amount",
-          "data.money",
-          "data.transferAmount",
-          "data.transfer_amount",
-          "data.amount_in",
-        ], "0"),
-      );
-
-      if (!Number.isFinite(amount) || amount <= 0) {
-        return new Response(JSON.stringify({ ok: false, message: "Invalid amount" }), {
-          status: 400,
-          headers: { "content-type": "application/json" },
-        });
-      }
-
       const accountNumber = String(
         pickDeep(payload, [
           "account_number",
@@ -387,7 +477,56 @@ export default {
           "data.direction",
         ], ""),
       ).trim().toLowerCase();
-      const isOutgoing = transferTypeRaw === "out" || transferTypeRaw === "debit";
+      let isOutgoing = transferTypeRaw === "out" || transferTypeRaw === "debit";
+
+      const incomingAmount = parseAmount(
+        pickDeep(payload, [
+          "credit_amount",
+          "in_amount",
+          "amount_in",
+          "data.credit_amount",
+          "data.in_amount",
+          "data.amount_in",
+        ], ""),
+      );
+      const outgoingAmount = parseAmount(
+        pickDeep(payload, [
+          "debit_amount",
+          "out_amount",
+          "amount_out",
+          "data.debit_amount",
+          "data.out_amount",
+          "data.amount_out",
+        ], ""),
+      );
+      const genericAmount = parseAmount(
+        pickDeep(payload, [
+          "amount",
+          "money",
+          "transferAmount",
+          "transfer_amount",
+          "data.amount",
+          "data.money",
+          "data.transferAmount",
+          "data.transfer_amount",
+        ], "0"),
+      );
+
+      if (!isOutgoing && Number.isFinite(outgoingAmount) && outgoingAmount > 0) {
+        isOutgoing = true;
+      }
+
+      const amount = Number.isFinite(genericAmount) && genericAmount > 0
+        ? genericAmount
+        : (isOutgoing ? outgoingAmount : incomingAmount);
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return new Response(JSON.stringify({ ok: false, message: "Invalid amount" }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        });
+      }
+
       const isIncome = !isOutgoing;
 
       const bankCode = String(
@@ -420,7 +559,10 @@ export default {
         ], ""),
       );
 
-      const accessToken = await getAccessToken(env);
+      const accessToken = await getAccessToken(env, [
+        "https://www.googleapis.com/auth/datastore",
+        "https://www.googleapis.com/auth/firebase.messaging",
+      ]);
       const binding = await queryBinding(env, accessToken, accountNumber, bankCode);
 
       const resolvedUid = String(binding?.uid ?? "").trim();
@@ -479,6 +621,7 @@ export default {
           accountNumber,
           bankCode,
           transferType: transferTypeRaw,
+          ingestMode: "manual_like",
         },
         updatedAt: new Date(),
         createdAt: new Date(),
@@ -488,7 +631,7 @@ export default {
       const notiPayload = {
         type: "system",
         title: "Can xac nhan giao dich ngan hang",
-        body: `Da nhan ${amount} VND. Vui long mo thong bao de bo sung danh muc.`,
+        body: `Co Giao dich moi: ${isIncome ? "+" : "-"}${amount} VND`,
         isRead: false,
         meta: {
           provider: "sepay",
@@ -507,14 +650,127 @@ export default {
         notification: `users/${resolvedUid}/notifications/${notiId}`,
       };
 
+      const preferencesDoc = await getDoc(
+        env,
+        accessToken,
+        `users/${resolvedUid}/settings/preferences`,
+      );
+      const shouldNotifyNewTransaction =
+        fieldBool(preferencesDoc?.fields, "transactionAlerts", true) !== false;
+
+      const walletTargetPath = `users/${resolvedUid}/accounts/${binding.walletId}`;
+      const existingTxDoc = await getDoc(env, accessToken, writeTargets.primaryTransaction);
+      const existingTxFields = existingTxDoc?.fields;
+      const oldWalletId = fieldString(existingTxFields, "walletId", "");
+      const oldAmount = fieldNumber(existingTxFields, "amount", 0);
+      const oldIsIncome = fieldBool(existingTxFields, "isIncome", true);
+      const oldEffect = existingTxDoc ? signedAmount(oldIsIncome, oldAmount) : 0;
+      const newEffect = signedAmount(isIncome, amount);
+
+      const walletPathsToRead = [walletTargetPath];
+      if (oldWalletId && oldWalletId !== binding.walletId) {
+        walletPathsToRead.push(`users/${resolvedUid}/accounts/${oldWalletId}`);
+      }
+
+      const walletDocs = {};
+      for (const path of walletPathsToRead) {
+        walletDocs[path] = await getDoc(env, accessToken, path);
+      }
+
+      if (!oldWalletId || oldWalletId === binding.walletId) {
+        const walletFields = walletDocs[walletTargetPath]?.fields;
+        const currentBalance = fieldNumber(walletFields, "balance", 0);
+        const nextBalance = currentBalance - oldEffect + newEffect;
+        const walletUpdatePayload = {
+          name: fieldString(walletFields, "name", binding.walletName),
+          type: fieldString(walletFields, "type", "bank"),
+          colorHex: fieldString(walletFields, "colorHex", "#0D7377"),
+          isArchived: fieldBool(walletFields, "isArchived", false),
+          balance: nextBalance,
+          updatedAt: new Date(),
+        };
+        if (!walletDocs[walletTargetPath]) {
+          walletUpdatePayload.createdAt = new Date();
+        }
+        await patchDoc(env, accessToken, walletTargetPath, walletUpdatePayload);
+      } else {
+        const oldWalletPath = `users/${resolvedUid}/accounts/${oldWalletId}`;
+        const oldWalletFields = walletDocs[oldWalletPath]?.fields;
+        const newWalletFields = walletDocs[walletTargetPath]?.fields;
+        const oldWalletBalance = fieldNumber(oldWalletFields, "balance", 0);
+        const newWalletBalance = fieldNumber(newWalletFields, "balance", 0);
+
+        await patchDoc(env, accessToken, oldWalletPath, {
+          balance: oldWalletBalance - oldEffect,
+          updatedAt: new Date(),
+        });
+        const newWalletUpdatePayload = {
+          name: fieldString(newWalletFields, "name", binding.walletName),
+          type: fieldString(newWalletFields, "type", "bank"),
+          colorHex: fieldString(newWalletFields, "colorHex", "#0D7377"),
+          isArchived: fieldBool(newWalletFields, "isArchived", false),
+          balance: newWalletBalance + newEffect,
+          updatedAt: new Date(),
+        };
+        if (!walletDocs[walletTargetPath]) {
+          newWalletUpdatePayload.createdAt = new Date();
+        }
+        await patchDoc(env, accessToken, walletTargetPath, newWalletUpdatePayload);
+      }
+
       await patchDoc(env, accessToken, writeTargets.primaryTransaction, txPayload);
       await patchDoc(env, accessToken, writeTargets.legacyTransaction, txPayload);
-      await patchDoc(env, accessToken, writeTargets.notification, notiPayload);
+      if (shouldNotifyNewTransaction) {
+        await patchDoc(env, accessToken, writeTargets.notification, notiPayload);
+      }
+
+      const pushDelivery = {
+        attempted: false,
+        enabled: shouldNotifyNewTransaction,
+        deviceCount: 0,
+        sent: 0,
+        failed: 0,
+      };
+
+      if (shouldNotifyNewTransaction) {
+        try {
+          const tokens = await listActiveDeviceTokens(env, accessToken, resolvedUid);
+          pushDelivery.attempted = true;
+          pushDelivery.deviceCount = tokens.length;
+
+          for (const token of tokens) {
+            try {
+              await sendFcmToToken(
+                env,
+                accessToken,
+                token,
+                "G13 Money",
+                `Co Giao dich moi: ${isIncome ? "+" : "-"}${amount} VND`,
+                {
+                  source: "sepay",
+                  transactionId: String(rawTxId),
+                  uid: resolvedUid,
+                },
+              );
+              pushDelivery.sent += 1;
+            } catch (_) {
+              pushDelivery.failed += 1;
+            }
+          }
+        } catch (_) {
+          pushDelivery.attempted = true;
+          pushDelivery.failed = 1;
+        }
+      }
+
       await patchDoc(env, accessToken, `sepay_events/${txId}`, {
         uid: resolvedUid,
         accountNumber,
         transactionId: txId,
         writeTargets,
+        walletId: binding.walletId,
+        walletName: binding.walletName,
+        pushDelivery,
         rawPayload: payload,
         processedAt: new Date(),
       });
@@ -525,6 +781,7 @@ export default {
           uid: resolvedUid,
           transactionId: txId,
           writeTargets,
+          pushDelivery,
         }),
         { status: 200, headers: { "content-type": "application/json" } },
       );

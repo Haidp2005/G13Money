@@ -176,11 +176,8 @@ class BudgetsRepository {
   }
 
   IconData _parseIcon(String value, String category) {
-    final codePoint = int.tryParse(value);
-    if (codePoint == null) {
-      return CategoryHelper.iconFor(category);
-    }
-    return IconData(codePoint, fontFamily: 'MaterialIcons');
+    final _ = value;
+    return CategoryHelper.iconFor(category);
   }
 
   String _toHex(Color color) {

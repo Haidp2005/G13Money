@@ -38,10 +38,10 @@ class NotificationsPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(LanguageService.tr(vi: 'Thong bao giao dich', en: 'Transaction notifications')),
+        title: Text(LanguageService.tr(vi: 'Thông báo giao dịch', en: 'Transaction notifications')),
         actions: [
           IconButton(
-            tooltip: LanguageService.tr(vi: 'Tai lai', en: 'Refresh'),
+            tooltip: LanguageService.tr(vi: 'Tải lại', en: 'Refresh'),
             onPressed: () => ref.read(bankNotificationsProvider.notifier).refresh(),
             icon: const Icon(Icons.refresh),
           ),
@@ -64,7 +64,7 @@ class NotificationsPage extends ConsumerWidget {
                 const SizedBox(height: 10),
                 FilledButton(
                   onPressed: () => ref.read(bankNotificationsProvider.notifier).refresh(),
-                  child: Text(LanguageService.tr(vi: 'Thu lai', en: 'Retry')),
+                  child: Text(LanguageService.tr(vi: 'Thử lại', en: 'Retry')),
                 ),
               ],
             ),
@@ -75,7 +75,7 @@ class NotificationsPage extends ConsumerWidget {
           children: [
             Text(
               LanguageService.tr(
-                vi: 'Can bo sung danh muc',
+                vi: 'Cần bổ sung danh mục',
                 en: 'Need category update',
               ),
               style: TextStyle(
@@ -89,7 +89,7 @@ class NotificationsPage extends ConsumerWidget {
               _emptyCard(
                 context,
                 LanguageService.tr(
-                  vi: 'Khong co giao dich can cap nhat',
+                  vi: 'Không có giao dịch cần cập nhật',
                   en: 'No bank transactions need updates',
                 ),
               )
@@ -98,7 +98,7 @@ class NotificationsPage extends ConsumerWidget {
             const SizedBox(height: 18),
             Text(
               LanguageService.tr(
-                vi: 'Da cap nhat gan day',
+                vi: 'Đã cập nhật gần đây',
                 en: 'Recently updated',
               ),
               style: TextStyle(
@@ -112,7 +112,7 @@ class NotificationsPage extends ConsumerWidget {
               _emptyCard(
                 context,
                 LanguageService.tr(
-                  vi: 'Chua co giao dich da cap nhat',
+                  vi: 'Chưa có giao dịch đã cập nhật',
                   en: 'No reviewed bank transactions yet',
                 ),
               )
@@ -143,9 +143,9 @@ class NotificationsPage extends ConsumerWidget {
         leading: const Icon(Icons.notifications_active_outlined),
         title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text(
-          '${LanguageService.tr(vi: 'So tien', en: 'Amount')}: ${_money(item.amount)}\n'
-          '${LanguageService.tr(vi: 'Danh muc', en: 'Category')}: '
-          '${item.categoryName.trim().isEmpty ? LanguageService.tr(vi: 'Chua co', en: 'Missing') : item.categoryName}',
+          '${LanguageService.tr(vi: 'Số tiền', en: 'Amount')}: ${_money(item.amount)}\n'
+          '${LanguageService.tr(vi: 'Danh mục', en: 'Category')}: '
+          '${item.categoryName.trim().isEmpty ? LanguageService.tr(vi: 'Chưa có', en: 'Missing') : item.categoryName}',
         ),
         isThreeLine: true,
         trailing: FilledButton(
@@ -162,8 +162,8 @@ class NotificationsPage extends ConsumerWidget {
         leading: const Icon(Icons.check_circle_outline, color: Colors.green),
         title: Text(item.title),
         subtitle: Text(
-          '${LanguageService.tr(vi: 'So tien', en: 'Amount')}: ${_money(item.amount)}\n'
-          '${LanguageService.tr(vi: 'Danh muc', en: 'Category')}: ${item.categoryName}',
+          '${LanguageService.tr(vi: 'Số tiền', en: 'Amount')}: ${_money(item.amount)}\n'
+          '${LanguageService.tr(vi: 'Danh mục', en: 'Category')}: ${item.categoryName}',
         ),
         isThreeLine: true,
       ),
