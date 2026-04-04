@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../features/auth/ui/splash_screen.dart';
+
 import '../features/accounts/ui/accounts_page.dart';
 import '../features/accounts/ui/change_password_page.dart';
 import '../features/accounts/ui/edit_profile_page.dart';
@@ -13,6 +15,7 @@ import '../features/shared/ui/main_shell_page.dart';
 import '../features/transactions/ui/reports_screen.dart';
 
 abstract final class AppRoutes {
+  static const String splash = '/';
   static const String login = '/login';
   static const String home = '/home';
   static const String profile = '/profile';
@@ -26,6 +29,7 @@ abstract final class AppRoutes {
   static const String reports = '/reports';
 
   static final Map<String, WidgetBuilder> map = {
+    splash: (context) => const SplashScreen(),
     login: (context) => const LoginPage(),
     home: (context) {
       final Object? args = ModalRoute.of(context)?.settings.arguments;

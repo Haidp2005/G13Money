@@ -43,7 +43,7 @@ class ExpenseManagerApp extends ConsumerWidget {
         ),
         useMaterial3: true,
       ),
-      initialRoute: AppRoutes.login,
+      initialRoute: AppRoutes.splash,
       routes: AppRoutes.map,
     );
   }

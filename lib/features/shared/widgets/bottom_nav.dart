@@ -38,14 +38,16 @@ class MoneyBottomNav extends StatelessWidget {
 				mainAxisAlignment: MainAxisAlignment.spaceAround,
 				children: [
 					_NavItem(
-						icon: Icons.home_rounded,
+						icon: Icons.pie_chart_rounded,
+						activeIcon: Icons.pie_chart_rounded,
 						label: LanguageService.tr(vi: 'Tổng quan', en: 'Overview'),
 						active: currentIndex == 0,
 						onTap: () => onItemTap(0),
 					),
 					_NavItem(
-						icon: Icons.account_balance_wallet_outlined,
-						label: LanguageService.tr(vi: 'Sổ giao dịch', en: 'Transactions'),
+						icon: Icons.receipt_long_outlined,
+						activeIcon: Icons.receipt_long_rounded,
+						label: LanguageService.tr(vi: 'Giao dịch', en: 'Transactions'),
 						active: currentIndex == 1,
 						onTap: () => onItemTap(1),
 					),
@@ -66,23 +68,25 @@ class MoneyBottomNav extends StatelessWidget {
 								shape: BoxShape.circle,
 								boxShadow: [
 									BoxShadow(
-										color: scheme.primary.withValues(alpha: 0.35),
-										blurRadius: 14,
+										color: scheme.primary.withValues(alpha: 0.4),
+										blurRadius: 16,
 										offset: const Offset(0, 5),
 									),
 								],
 							),
-							child: const Icon(Icons.add, color: Colors.white, size: 34),
+							child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
 						),
 					),
 					_NavItem(
-						icon: Icons.content_paste_go_outlined,
+						icon: Icons.savings_outlined,
+						activeIcon: Icons.savings_rounded,
 						label: LanguageService.tr(vi: 'Ngân sách', en: 'Budgets'),
 						active: currentIndex == 3,
 						onTap: () => onItemTap(3),
 					),
 					_NavItem(
-						icon: Icons.person_outline_rounded,
+						icon: Icons.manage_accounts_outlined,
+						activeIcon: Icons.manage_accounts_rounded,
 						label: LanguageService.tr(vi: 'Tài khoản', en: 'Account'),
 						active: currentIndex == 4,
 						onTap: () => onItemTap(4),
@@ -99,9 +103,11 @@ class _NavItem extends StatelessWidget {
 		required this.label,
 		required this.active,
 		required this.onTap,
+		this.activeIcon,
 	});
 
 	final IconData icon;
+	final IconData? activeIcon;
 	final String label;
 	final bool active;
 	final VoidCallback onTap;
@@ -110,15 +116,19 @@ class _NavItem extends StatelessWidget {
 	Widget build(BuildContext context) {
 		final scheme = Theme.of(context).colorScheme;
 		final Color color = active ? scheme.primary : scheme.outline;
+		final displayIcon = active ? (activeIcon ?? icon) : icon;
 
 		return Expanded(
 			child: InkWell(
 				onTap: onTap,
+				splashColor: scheme.primary.withValues(alpha: 0.08),
+				highlightColor: Colors.transparent,
 				child: Column(
 					mainAxisAlignment: MainAxisAlignment.center,
 					children: [
 						AnimatedContainer(
-							duration: const Duration(milliseconds: 200),
+							duration: const Duration(milliseconds: 220),
+							curve: Curves.easeOutBack,
 							padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
 							decoration: BoxDecoration(
 								color: active
@@ -126,16 +136,22 @@ class _NavItem extends StatelessWidget {
 										: Colors.transparent,
 								borderRadius: BorderRadius.circular(14),
 							),
-							child: Icon(icon, color: color, size: 24),
+							child: AnimatedScale(
+								scale: active ? 1.1 : 1.0,
+								duration: const Duration(milliseconds: 220),
+								curve: Curves.easeOutBack,
+								child: Icon(displayIcon, color: color, size: 24),
+							),
 						),
 						const SizedBox(height: 4),
-						Text(
-							label,
+						AnimatedDefaultTextStyle(
+							duration: const Duration(milliseconds: 200),
 							style: TextStyle(
 								color: color,
 								fontSize: 11,
 								fontWeight: active ? FontWeight.w700 : FontWeight.w500,
 							),
+							child: Text(label),
 						),
 					],
 				),

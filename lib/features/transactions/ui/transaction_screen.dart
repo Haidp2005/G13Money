@@ -97,11 +97,26 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
   List<MoneyTransaction> _applyFilters(
     List<MoneyTransaction> transactions,
     int selectedFilterIndex,
+    DateTimeRange? customRange,
     String rawQuery,
     _SearchScope searchScope,
   ) {
     final now = DateTime.now();
     final query = rawQuery.trim().toLowerCase();
+
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final endOfMonth = DateTime(now.year, now.month + 1, 1);
+
+    final endOfCustomRange = customRange == null
+        ? null
+        : DateTime(
+            customRange.end.year,
+            customRange.end.month,
+            customRange.end.day,
+            23,
+            59,
+            59,
+          );
 
     final startOfToday = DateTime(now.year, now.month, now.day);
     final startOfWeek = startOfToday.subtract(Duration(days: now.weekday - 1));
@@ -111,8 +126,11 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
       final dateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
 
       final matchesTime = switch (selectedFilterIndex) {
-        0 => tx.date.year == now.year && tx.date.month == now.month,
+        0 => !dateOnly.isBefore(startOfMonth) && dateOnly.isBefore(endOfMonth),
         1 => !dateOnly.isBefore(startOfWeek) && dateOnly.isBefore(endOfWeek),
+        2 => customRange != null &&
+            !tx.date.isBefore(customRange.start) &&
+            !tx.date.isAfter(endOfCustomRange!),
         _ => true,
       };
       if (!matchesTime) return false;
@@ -126,6 +144,12 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
         _SearchScope.all => note.contains(query) || category.contains(query),
       };
     }).toList(growable: false);
+  }
+
+  String _customRangeLabel(DateTimeRange range) {
+    String fmt(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    return '${fmt(range.start)} - ${fmt(range.end)}';
   }
 
   String _searchHintText() {
@@ -154,12 +178,14 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final selectedFilterIndex = ref.watch(transactionFilterIndexProvider);
+    final customRange = ref.watch(transactionCustomDateRangeProvider);
     final transactionState = ref.watch(transactionsControllerProvider);
     final remoteTransactions =
       transactionState.valueOrNull ?? <MoneyTransaction>[];
     final filteredTransactions = _applyFilters(
       remoteTransactions,
       selectedFilterIndex,
+      customRange,
       _searchQuery,
       _searchScope,
     );
@@ -263,6 +289,22 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
+                        if (selectedFilterIndex == 2 && customRange != null) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Khoảng: ${_customRangeLabel(customRange)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: scheme.primary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.right,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -436,6 +478,38 @@ class _FilterBar extends ConsumerWidget {
               selected: isSelected,
               onSelected: (selected) {
                 if (selected) {
+                  if (index == 2) {
+                    () async {
+                      final now = DateTime.now();
+                      final initialRange =
+                          ref.read(transactionCustomDateRangeProvider) ??
+                          DateTimeRange(
+                            start: DateTime(now.year, now.month, 1),
+                            end: DateTime(now.year, now.month, now.day),
+                          );
+
+                      final picked = await showDateRangePicker(
+                        context: context,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                        initialDateRange: initialRange,
+                        saveText: 'Áp dụng',
+                        helpText: 'Chọn khoảng thời gian',
+                      );
+
+                      if (picked == null) return;
+                      ref
+                          .read(transactionCustomDateRangeProvider.notifier)
+                          .state = picked;
+                      ref.read(transactionFilterIndexProvider.notifier).state =
+                          index;
+                      if (onFilterChanged != null) {
+                        onFilterChanged!(_filters[index]);
+                      }
+                    }();
+                    return;
+                  }
+
                     ref.read(transactionFilterIndexProvider.notifier).state =
                       index;
                   if (onFilterChanged != null) {
