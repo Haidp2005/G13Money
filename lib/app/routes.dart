@@ -9,6 +9,7 @@ import '../features/accounts/ui/notifications_page.dart';
 import '../features/budgets/ui/budgets_page.dart';
 import '../features/auth/ui/login_page.dart';
 import '../features/shared/ui/main_shell_page.dart';
+import '../features/transactions/ui/reports_screen.dart';
 
 abstract final class AppRoutes {
   static const String login = '/login';
@@ -20,6 +21,7 @@ abstract final class AppRoutes {
   static const String budgets = '/budgets';
   static const String manageWallets = '/manage-wallets';
   static const String manageCategories = '/manage-categories';
+  static const String reports = '/reports';
 
   static final Map<String, WidgetBuilder> map = {
     login: (context) => const LoginPage(),
@@ -35,5 +37,6 @@ abstract final class AppRoutes {
     budgets: (context) => const BudgetsPage(),
     manageWallets: (context) => const ManageWalletsPage(),
     manageCategories: (context) => const ManageCategoriesPage(),
+    reports: (context) => const ReportsScreen(),
   };
 }

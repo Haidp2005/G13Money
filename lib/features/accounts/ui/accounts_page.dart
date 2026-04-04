@@ -4,15 +4,17 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/language_service.dart';
 import '../../../core/services/theme_service.dart';
 import '../../../core/state/app_settings_providers.dart';
+import '../state/profile_state.dart';
 import '../../auth/ui/login_page.dart';
 import '../../../core/models/user_model.dart';
 import '../../../app/routes.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(profileRefreshTickProvider);
     final user = AuthService.currentUser;
     if (user == null) {
       return const LoginPage();
@@ -46,8 +48,7 @@ class _ProfileView extends StatelessWidget {
               IconButton(
                 tooltip: LanguageService.tr(vi: 'Chỉnh sửa', en: 'Edit'),
                 icon: const Icon(Icons.edit_outlined, color: Colors.white),
-                onPressed: () =>
-                    Navigator.pushNamed(context, AppRoutes.editProfile),
+                onPressed: () => Navigator.pushNamed(context, AppRoutes.editProfile),
               ),
               const SizedBox(width: 8),
             ],

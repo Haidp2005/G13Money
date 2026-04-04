@@ -15,6 +15,10 @@ class TransactionScreen extends ConsumerStatefulWidget {
 }
 
 class _TransactionScreenState extends ConsumerState<TransactionScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  _SearchScope _searchScope = _SearchScope.all;
+
   // Dummy Data for demonstration
   final List<Map<String, dynamic>> _groupedTransactions = [
     {
@@ -155,15 +159,78 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     return '${value >= 0 ? '+' : '-'}${buffer.toString()} ₫';
   }
 
+  List<MoneyTransaction> _applyFilters(
+    List<MoneyTransaction> transactions,
+    int selectedFilterIndex,
+    String rawQuery,
+    _SearchScope searchScope,
+  ) {
+    final now = DateTime.now();
+    final query = rawQuery.trim().toLowerCase();
+
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    final startOfWeek = startOfToday.subtract(Duration(days: now.weekday - 1));
+    final endOfWeek = startOfWeek.add(const Duration(days: 7));
+
+    return transactions.where((tx) {
+      final dateOnly = DateTime(tx.date.year, tx.date.month, tx.date.day);
+
+      final matchesTime = switch (selectedFilterIndex) {
+        0 => tx.date.year == now.year && tx.date.month == now.month,
+        1 => !dateOnly.isBefore(startOfWeek) && dateOnly.isBefore(endOfWeek),
+        _ => true,
+      };
+      if (!matchesTime) return false;
+
+      if (query.isEmpty) return true;
+      final note = tx.title.toLowerCase();
+      final category = tx.category.toLowerCase();
+      return switch (searchScope) {
+        _SearchScope.category => category.contains(query),
+        _SearchScope.note => note.contains(query),
+        _SearchScope.all => note.contains(query) || category.contains(query),
+      };
+    }).toList(growable: false);
+  }
+
+  String _searchHintText() {
+    return switch (_searchScope) {
+      _SearchScope.category => 'Tìm theo danh mục...',
+      _SearchScope.note => 'Tìm theo ghi chú...',
+      _SearchScope.all => 'Tìm theo ghi chú hoặc danh mục...',
+    };
+  }
+
+  String _searchScopeLabel() {
+    return switch (_searchScope) {
+      _SearchScope.category => 'Danh mục',
+      _SearchScope.note => 'Ghi chú',
+      _SearchScope.all => 'Ghi chú + Danh mục',
+    };
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final selectedFilterIndex = ref.watch(transactionFilterIndexProvider);
     final transactionState = ref.watch(transactionsControllerProvider);
     final remoteTransactions =
       transactionState.valueOrNull ?? <MoneyTransaction>[];
+    final filteredTransactions = _applyFilters(
+      remoteTransactions,
+      selectedFilterIndex,
+      _searchQuery,
+      _searchScope,
+    );
     final groupedData = remoteTransactions.isEmpty
         ? _groupedTransactions
-        : _groupTransactions(remoteTransactions);
+        : _groupTransactions(filteredTransactions);
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerLowest,
@@ -193,7 +260,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
               )
             ],
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(130),
+              preferredSize: const Size.fromHeight(156),
               child: Column(
                 children: [
                   // ── Search Bar ──
@@ -205,17 +272,65 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: TextField(
+                        controller: _searchController,
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                          });
+                        },
                         decoration: InputDecoration(
-                          hintText: 'Tìm kiếm giao dịch...',
+                          hintText: _searchHintText(),
                           hintStyle: TextStyle(
                             color: scheme.onSurfaceVariant,
                             fontSize: 15,
                           ),
                           prefixIcon: Icon(Icons.search, color: scheme.onSurfaceVariant),
+                          suffixIcon: PopupMenuButton<_SearchScope>(
+                            tooltip: 'Chọn phạm vi tìm kiếm',
+                            initialValue: _searchScope,
+                            onSelected: (value) {
+                              setState(() {
+                                _searchScope = value;
+                              });
+                            },
+                            icon: Icon(
+                              Icons.tune,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            itemBuilder: (context) => const [
+                              PopupMenuItem(
+                                value: _SearchScope.all,
+                                child: Text('Ghi chú + Danh mục'),
+                              ),
+                              PopupMenuItem(
+                                value: _SearchScope.category,
+                                child: Text('Danh mục'),
+                              ),
+                              PopupMenuItem(
+                                value: _SearchScope.note,
+                                child: Text('Ghi chú'),
+                              ),
+                            ],
+                          ),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(vertical: 14),
                         ),
                       ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20, right: 20, bottom: 2),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Tìm theo: ${_searchScopeLabel()}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   // ── Filter Bar ──
@@ -285,6 +400,20 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
             ),
 
           // ── Transaction List ──
+          if (groupedData.isEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                child: Text(
+                  'Không có giao dịch phù hợp bộ lọc hiện tại.',
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
           SliverPadding(
             padding: const EdgeInsets.only(bottom: 100), // padding for FAB
             sliver: SliverList(
@@ -345,6 +474,8 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     );
   }
 }
+
+enum _SearchScope { all, category, note }
 
 // ── Widget: FilterBar ──
 class _FilterBar extends ConsumerWidget {

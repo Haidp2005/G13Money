@@ -477,7 +477,12 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(title: 'Báo cáo', action: 'Xem báo cáo', scheme: scheme),
+        _sectionHeader(
+          title: 'Báo cáo',
+          action: 'Xem báo cáo',
+          scheme: scheme,
+          onTap: () => Navigator.pushNamed(context, AppRoutes.reports),
+        ),
         const SizedBox(height: 14),
         _sectionCard(
           scheme: scheme,
@@ -812,6 +817,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
     required String title,
     required String action,
     required ColorScheme scheme,
+    VoidCallback? onTap,
   }) {
     return Row(
       children: [
@@ -824,19 +830,22 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
           ),
         ),
         const Spacer(),
-        Row(
-          children: [
-            Text(
-              action,
-              style: TextStyle(
-                color: scheme.primary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+        GestureDetector(
+          onTap: onTap,
+          child: Row(
+            children: [
+              Text(
+                action,
+                style: TextStyle(
+                  color: scheme.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(width: 2),
-            Icon(Icons.arrow_forward_ios_rounded, color: scheme.primary, size: 12),
-          ],
+              const SizedBox(width: 2),
+              Icon(Icons.arrow_forward_ios_rounded, color: scheme.primary, size: 12),
+            ],
+          ),
         ),
       ],
     );

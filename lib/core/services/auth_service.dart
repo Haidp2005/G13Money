@@ -98,12 +98,31 @@ class AuthService {
     final normalizedPhone = phone.trim();
     final initials = _buildInitials(normalizedName);
 
-    await _db.collection('users').doc(user.uid).set({
-      'fullName': normalizedName,
-      'phone': normalizedPhone,
-      'avatarInitials': initials,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    final userDoc = _db.collection('users').doc(user.uid);
+    final profileDoc = userDoc.collection('settings').doc('profile');
+
+    final batch = _db.batch();
+    batch.set(
+      userDoc,
+      {
+        'fullName': normalizedName,
+        'phone': normalizedPhone,
+        'avatarInitials': initials,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+    batch.set(
+      profileDoc,
+      {
+        'fullName': normalizedName,
+        'phone': normalizedPhone,
+        'avatarInitials': initials,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+    await batch.commit();
 
     await user.updateDisplayName(normalizedName);
 

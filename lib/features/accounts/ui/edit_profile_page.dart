@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/language_service.dart';
 import '../state/edit_profile_state.dart';
+import '../state/profile_state.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -37,13 +38,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     ref.read(editProfileSavingProvider.notifier).state = true;
 
     try {
-      // Giả lập độ trễ mạng
-      await Future.delayed(const Duration(milliseconds: 800));
-
       await AuthService.updateCurrentUserProfile(
         fullName: _nameCtrl.text,
         phone: _phoneCtrl.text,
       );
+
+      ref.read(profileRefreshTickProvider.notifier).state++;
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
