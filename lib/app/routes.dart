@@ -13,6 +13,7 @@ import '../features/budgets/ui/budgets_page.dart';
 import '../features/auth/ui/login_page.dart';
 import '../features/shared/ui/main_shell_page.dart';
 import '../features/transactions/ui/reports_screen.dart';
+import '../features/accounts/ui/about_page.dart';
 
 abstract final class AppRoutes {
   static const String splash = '/';
@@ -27,6 +28,7 @@ abstract final class AppRoutes {
   static const String manageWallets = '/manage-wallets';
   static const String manageCategories = '/manage-categories';
   static const String reports = '/reports';
+  static const String about = '/about';
 
   static final Map<String, WidgetBuilder> map = {
     splash: (context) => const SplashScreen(),
@@ -45,5 +47,6 @@ abstract final class AppRoutes {
     manageWallets: (context) => const ManageWalletsPage(),
     manageCategories: (context) => const ManageCategoriesPage(),
     reports: (context) => const ReportsScreen(),
+    about: (context) => const AboutPage(),
   };
 }

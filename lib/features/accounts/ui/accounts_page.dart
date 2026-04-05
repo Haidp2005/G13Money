@@ -364,9 +364,9 @@ class _MenuCard extends StatelessWidget {
             : LanguageService.tr(vi: 'Chủ đề sáng', en: 'Light theme'),
       ),
       _SettingEntry(
-        icon: Icons.help_outline,
-        title: LanguageService.tr(vi: 'Trợ giúp', en: 'Help'),
-        subtitle: LanguageService.tr(vi: 'FAQ & hỗ trợ', en: 'FAQ & support'),
+        icon: Icons.info_outline,
+        title: LanguageService.tr(vi: 'Giới thiệu ứng dụng', en: 'About App'),
+        subtitle: LanguageService.tr(vi: 'Thông tin & tính năng của G13 Money', en: 'Info & features of G13 Money'),
       ),
     ];
 
@@ -429,6 +429,8 @@ class _MenuCard extends StatelessWidget {
                   _showLanguageBottomSheet(context);
                 } else if (item.icon == Icons.color_lens_outlined) {
                   _showThemeBottomSheet(context);
+                } else if (item.icon == Icons.info_outline) {
+                  Navigator.pushNamed(context, AppRoutes.about);
                 }
               },
             ),
