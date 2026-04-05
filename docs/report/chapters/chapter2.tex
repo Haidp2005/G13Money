@@ -1,0 +1,830 @@
+% ════════════════════════════════════════════════════════════════════════════
+% CHƯƠNG 2: PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG}
+
+% ── 2.1 CÔNG NGHỆ SỬ DỤNG ───────────────────────────────────────────────────
+\section{Công nghệ sử dụng}
+
+\subsection{Ngôn ngữ lập trình Dart}
+
+\subsubsection{Định nghĩa}
+
+Dart là ngôn ngữ lập trình hướng đối tượng, mã nguồn mở, được phát triển bởi Google và giới thiệu lần đầu vào năm 2011. Dart được thiết kế để xây dựng ứng dụng đa nền tảng (mobile, web, server) với hiệu năng cao. Dart là ngôn ngữ chính thức của Flutter framework.
+
+\subsubsection{Đặc điểm kỹ thuật}
+
+\begin{itemize}
+  \item \textbf{Strongly typed} với hệ thống Sound Null Safety (từ Dart 2.12+): phát hiện lỗi null tại thời điểm biên dịch, không phải runtime.
+  \item \textbf{AOT (Ahead-of-Time) compilation:} Biên dịch thành mã máy native trước khi chạy, đảm bảo hiệu năng cao trên thiết bị.
+  \item \textbf{JIT (Just-in-Time) compilation:} Sử dụng trong quá trình phát triển, cho phép Hot Reload (thay đổi code và thấy kết quả trong $<1$ giây).
+  \item \textbf{Async/Await:} Hỗ trợ lập trình bất đồng bộ mạnh mẽ với \texttt{Future} và \texttt{Stream}, phù hợp cho các tác vụ I/O (gọi API, đọc database).
+  \item \textbf{Isolates:} Mô hình đa luồng không chia sẻ bộ nhớ, tránh race condition.
+\end{itemize}
+
+\subsubsection{Ưu và nhược điểm}
+
+\begin{table}[H]
+\centering
+\caption{Ưu điểm và nhược điểm của Dart}
+\begin{tabularx}{\textwidth}{|X|X|}
+\hline
+\textbf{Ưu điểm} & \textbf{Nhược điểm} \\
+\hline
+Cú pháp rõ ràng, quen thuộc với lập trình viên Java/C\#/JavaScript & Cộng đồng nhỏ hơn so với JavaScript, Python hay Java \\
+\hline
+Null Safety giảm lỗi runtime đáng kể & Ít được sử dụng ngoài hệ sinh thái Flutter \\
+\hline
+Hot Reload tăng tốc phát triển 3--5 lần & Một số thư viện bên thứ ba chưa phong phú bằng npm \\
+\hline
+Biên dịch AOT cho hiệu năng native & Debugging đôi khi khó hơn so với JavaScript \\
+\hline
+Tài liệu chính thức đầy đủ, rõ ràng & \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{Tính ứng dụng trong dự án}
+
+Dart được sử dụng xuyên suốt toàn bộ dự án: từ UI widgets, business logic, state management, cho đến tương tác với Firebase và REST API. Null Safety giúp phát hiện nhiều lỗi tiềm ẩn ngay lúc code thay vì khi app đang chạy.
+
+\subsection{Flutter Framework}
+
+\subsubsection{Định nghĩa}
+
+Flutter là framework phát triển ứng dụng đa nền tảng mã nguồn mở của Google, sử dụng ngôn ngữ Dart. Ra mắt phiên bản stable 1.0 vào tháng 12/2018, Flutter cho phép xây dựng ứng dụng native cho Android, iOS, Web và Desktop từ một codebase duy nhất.
+
+\subsubsection{Kiến trúc Flutter}
+
+Flutter sử dụng kiến trúc 3 tầng:
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  layer/.style={draw, rounded corners=6pt, minimum width=12cm, minimum height=1.2cm,
+    align=center, font=\small},
+  >=Stealth
+]
+\node[layer, fill=blue!15] (fw) at (0, 0) {\textbf{Framework (Dart)} \\ Material, Cupertino, Widgets, Rendering, Animation, Painting, Gestures};
+\node[layer, fill=green!15] (engine) at (0, -2) {\textbf{Engine (C/C++)} \\ Skia (2D rendering), Dart Runtime, Text Layout (ICU)};
+\node[layer, fill=orange!15] (embed) at (0, -4) {\textbf{Embedder (Platform-specific)} \\ Android (Java/Kotlin), iOS (Obj-C/Swift), Web, Desktop};
+
+\draw[->, thick] (fw) -- (engine);
+\draw[->, thick] (engine) -- (embed);
+\end{tikzpicture}
+\caption{Kiến trúc 3 tầng của Flutter}
+\label{fig:flutter-arch}
+\end{figure}
+
+\subsubsection{Ưu và nhược điểm}
+
+\begin{table}[H]
+\centering
+\caption{Ưu điểm và nhược điểm của Flutter}
+\begin{tabularx}{\textwidth}{|X|X|}
+\hline
+\textbf{Ưu điểm} & \textbf{Nhược điểm} \\
+\hline
+\textbf{Một codebase cho đa nền tảng:} Giảm 50--60\% effort so với phát triển native riêng & Kích thước APK/IPA lớn hơn native (thêm $\sim$4--8MB cho engine) \\
+\hline
+\textbf{Hot Reload:} Thấy thay đổi ngay lập tức, tăng tốc phát triển & Một số API native cần plugin, chưa 100\% tương đương native \\
+\hline
+\textbf{Widget-based:} ``Everything is a widget'', dễ tùy chỉnh UI đến từng pixel & Widget tree sâu có thể khó đọc nếu không organize tốt \\
+\hline
+\textbf{Material Design 3:} Hỗ trợ sẵn hệ thống thiết kế hiện đại nhất của Google & Web performance chưa tối ưu bằng React/Next.js \\
+\hline
+\textbf{Hiệu năng cao:} Render qua Skia/Impeller, không qua bridge như React Native & \\
+\hline
+\textbf{Cộng đồng lớn:} 30,000+ packages trên pub.dev & \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{Tại sao chọn Flutter thay vì React Native hoặc Native?}
+
+\begin{table}[H]
+\centering
+\caption{So sánh Flutter với React Native và Native}
+\label{tab:flutter-comparison}
+\begin{tabularx}{\textwidth}{|l|X|X|X|}
+\hline
+\textbf{Tiêu chí} & \textbf{Flutter} & \textbf{React Native} & \textbf{Native} \\
+\hline
+Ngôn ngữ & Dart & JavaScript & Kotlin/Swift \\
+\hline
+Codebase & 1 cho tất cả & 1 (80--90\% share) & 2 riêng biệt \\
+\hline
+UI rendering & Skia (trực tiếp) & Bridge sang native & Trực tiếp \\
+\hline
+Hot Reload & Có (nhanh) & Có & Không \\
+\hline
+Hiệu năng & Gần native & Thấp hơn (bridge) & Tốt nhất \\
+\hline
+Material Design 3 & Hỗ trợ sẵn & Cần thư viện & Hỗ trợ Android \\
+\hline
+Thời gian phát triển & Nhanh & Nhanh & Chậm (x2) \\
+\hline
+\end{tabularx}
+\end{table}
+
+\textbf{Kết luận:} Flutter được chọn vì cân bằng tốt nhất giữa hiệu năng, tốc độ phát triển, và chất lượng UI cho một dự án học thuật có timeline giới hạn.
+
+\subsection{Firebase --- Backend-as-a-Service}
+
+\subsubsection{Định nghĩa}
+
+Firebase là nền tảng phát triển ứng dụng toàn diện của Google, cung cấp các dịch vụ backend sẵn dùng (BaaS --- Backend as a Service). Firebase giúp lập trình viên tập trung vào logic ứng dụng mà không cần xây dựng và vận hành server riêng.
+
+\subsubsection{Các dịch vụ Firebase sử dụng trong dự án}
+
+\begin{table}[H]
+\centering
+\caption{Chi tiết các dịch vụ Firebase trong G13 Money}
+\label{tab:firebase-detail}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Dịch vụ} & \textbf{Phiên bản} & \textbf{Mục đích sử dụng chi tiết} \\
+\hline
+\makecell[l]{Firebase\\Authentication} & 6.3.0 & Xác thực người dùng bằng email/password. Quản lý session, token refresh, multi-device login. Tích hợp với \texttt{local\_auth} cho sinh trắc học. \\
+\hline
+\makecell[l]{Cloud\\Firestore} & 6.2.0 & CSDL NoSQL lưu trữ toàn bộ dữ liệu: người dùng, giao dịch, ngân sách, ví, danh mục, thông báo, cài đặt. Hỗ trợ realtime sync và offline persistence. \\
+\hline
+\makecell[l]{Firebase Cloud\\Messaging} & 16.0.0 & Push notification cho cảnh báo ngân sách, nhắc giao dịch, thông báo SePay. Quản lý FCM token per-device. \\
+\hline
+\makecell[l]{Firebase\\Storage} & 13.2.0 & Lưu trữ ảnh đại diện người dùng. Upload/download với progress tracking. \\
+\hline
+\makecell[l]{Cloud\\Functions} & Node.js 18 & Xử lý webhook SePay: nhận POST → lookup binding → ghi giao dịch + thông báo vào Firestore. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsubsection{Ưu điểm của Firebase cho dự án này}
+
+\begin{itemize}
+  \item \textbf{Không cần quản lý server:} Giảm thời gian và chi phí vận hành.
+  \item \textbf{Tích hợp sâu với Flutter:} Các package FlutterFire chính thức, được Google maintain.
+  \item \textbf{Spark plan miễn phí:} Đủ chưa cho giai đoạn phát triển và demo.
+  \item \textbf{Realtime sync:} Dữ liệu cập nhật tức thì trên nhiều thiết bị.
+  \item \textbf{Security Rules:} Bảo mật tầng database mà không cần viết middleware.
+\end{itemize}
+
+\subsection{Google Gemini AI}
+
+\textbf{Định nghĩa:} Gemini là mô hình ngôn ngữ lớn đa phương thức (multimodal LLM) thế hệ mới nhất của Google, ra mắt tháng 12/2023. Trong dự án, sử dụng model \texttt{gemini-1.5-flash} qua REST API.
+
+\textbf{Ứng dụng trong dự án:}
+\begin{itemize}
+  \item \texttt{generateAdvice()}: Phân tích dữ liệu thu chi → tạo 3 gợi ý hành động.
+  \item \texttt{chatWithAssistant()}: Trả lời câu hỏi tài chính dựa trên dữ liệu thực.
+  \item \textbf{Fallback strategy:} Khi AI không khả dụng → phân tích local bằng rules-based logic.
+\end{itemize}
+
+\subsection{Các công nghệ bổ sung}
+
+\begin{table}[H]
+\centering
+\caption{Công nghệ và thư viện bổ sung}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Công nghệ} & \textbf{Phiên bản} & \textbf{Mục đích} \\
+\hline
+Supabase Storage & 2.9.0 & Lưu trữ file bổ sung (ảnh hóa đơn) \\
+\hline
+fl\_chart & 0.70.2 & Biểu đồ cột và biểu đồ tròn \\
+\hline
+local\_auth & 2.3.0 & Xác thực vân tay, FaceID \\
+\hline
+flutter\_secure\_storage & 9.2.2 & Lưu token an toàn (Keychain/Keystore) \\
+\hline
+flutter\_local\_notifications & 17.2.4 & Thông báo local scheduled \\
+\hline
+image\_picker & 1.1.2 & Chọn ảnh từ gallery/camera \\
+\hline
+http & 1.5.0 & Gọi REST API (Gemini) \\
+\hline
+SePay Webhook & --- & Tự động ghi giao dịch ngân hàng \\
+\hline
+Cloudflare Workers & --- & Alternative webhook handler \\
+\hline
+\end{tabularx}
+\end{table}
+
+% ── 2.2 STATE MANAGEMENT ────────────────────────────────────────────────────
+\section{Quản lý trạng thái (State Management)}
+
+\subsection{Bài toán State Management trong Flutter}
+
+Trong Flutter, UI được xây dựng từ cây widget (widget tree). Khi trạng thái (state) thay đổi, Flutter cần biết widget nào cần rebuild. \textbf{State Management} là cơ chế quản lý, truyền, và cập nhật state một cách hiệu quả xuyên suốt widget tree.
+
+Có hai loại state cần quản lý:
+\begin{itemize}
+  \item \textbf{Ephemeral state (UI state):} State cục bộ của một widget (ví dụ: animation progress, form input). Sử dụng \texttt{StatefulWidget} + \texttt{setState()}.
+  \item \textbf{App state (Shared state):} State được chia sẻ giữa nhiều widget (ví dụ: danh sách giao dịch, thông tin user, theme). Cần giải pháp state management.
+\end{itemize}
+
+\subsection{So sánh chi tiết các giải pháp}
+
+\begin{table}[H]
+\centering
+\caption{So sánh chi tiết các giải pháp State Management}
+\label{tab:state-detail}
+\begin{tabularx}{\textwidth}{|l|c|c|c|X|}
+\hline
+\textbf{Tiêu chí} & \textbf{Provider} & \textbf{BLoC} & \textbf{Riverpod} & \textbf{GetX} \\
+\hline
+Boilerplate & Ít & Nhiều & Ít & Rất ít \\
+\hline
+Cần BuildContext & Có & Có & \textbf{Không} & Không \\
+\hline
+Compile-safe & Không & Có & \textbf{Có} & Không \\
+\hline
+Testability & Trung bình & Cao & \textbf{Cao} & Thấp \\
+\hline
+Auto-dispose & Có & Phải tự quản lý & \textbf{Có} & Có \\
+\hline
+Learning curve & Thấp & Cao & Trung bình & Thấp \\
+\hline
+Phù hợp & Nhỏ--TB & Lớn & \textbf{TB--Lớn} & Nhỏ \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Tại sao chọn Riverpod?}
+
+Nhóm chọn \textbf{Riverpod} (phiên bản tiến hóa của Provider, cùng tác giả Remi Rousselet) vì 6 lý do chính:
+
+\begin{enumerate}
+  \item \textbf{Compile-safe:} Lỗi truy cập provider sai được phát hiện tại thời điểm biên dịch. Provider gốc chỉ phát hiện tại runtime → crash.
+  
+  \item \textbf{Không phụ thuộc BuildContext:} Provider gốc yêu cầu \texttt{context.read<T>()} chỉ hoạt động bên trong widget tree. Riverpod cho phép truy cập state ở bất kỳ đâu: trong services, repositories, tests.
+  
+  \item \textbf{Tự động dispose:} Khi không còn widget nào \texttt{watch} một provider, Riverpod tự động giải phóng tài nguyên, tránh memory leak.
+  
+  \item \textbf{Dễ test:} Hỗ trợ \texttt{ProviderContainer} cho unit test mà không cần mock BuildContext hay widget tree.
+  
+  \item \textbf{Ít boilerplate hơn BLoC:} BLoC yêu cầu tạo Event class, State class, Bloc class cho mỗi feature. Riverpod chỉ cần khai báo provider.
+  
+  \item \textbf{Đủ mạnh cho dự án:} Hỗ trợ \texttt{StateProvider}, \texttt{FutureProvider}, \texttt{StreamProvider}, \texttt{NotifierProvider} --- đủ cho mọi use case.
+\end{enumerate}
+
+\textbf{Ví dụ so sánh code BLoC vs Riverpod:}
+
+\begin{lstlisting}[caption={BLoC: cần 3 class cho mỗi feature}]
+// Event
+abstract class TransactionEvent {}
+class LoadTransactions extends TransactionEvent {}
+
+// State
+abstract class TransactionState {}
+class TransactionsLoaded extends TransactionState {
+  final List<MoneyTransaction> transactions;
+  TransactionsLoaded(this.transactions);
+}
+
+// Bloc
+class TransactionBloc
+  extends Bloc<TransactionEvent, TransactionState> {
+  TransactionBloc() : super(TransactionsInitial());
+  // ... handlers
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Riverpod: chỉ cần 1 dòng provider}]
+// Riverpod - 1 dong duy nhat
+final transactionsControllerProvider =
+  StateProvider<List<MoneyTransaction>>((ref) => []);
+\end{lstlisting}
+
+\subsection{Cách sử dụng Riverpod trong dự án}
+
+\begin{lstlisting}[caption={Riverpod trong G13 Money --- Provider declarations}]
+// app_settings_providers.dart
+final appLanguageProvider = StateProvider<AppLanguage>(
+  (ref) => AppLanguage.vietnamese,
+);
+
+final themeModeProvider = StateProvider<ThemeMode>(
+  (ref) => ThemeMode.light,
+);
+
+// overview_state.dart
+final overviewWalletsProvider =
+  StateProvider<List<Account>>((ref) => []);
+final overviewTransactionsProvider =
+  StateProvider<List<MoneyTransaction>>((ref) => []);
+
+// main_shell_state.dart
+final shellSelectedIndexProvider =
+  StateProvider<int>((ref) => 0);
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Đọc và cập nhật state trong Widget}]
+class OverviewPage extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // watch(): rebuild khi state thay doi
+    final transactions =
+      ref.watch(overviewTransactionsProvider);
+    final wallets =
+      ref.watch(overviewWalletsProvider);
+
+    // Tinh toan thong ke tu state
+    final totalBalance = wallets
+      .fold<double>(0, (sum, w) => sum + w.balance);
+    
+    return Scaffold(
+      body: Column(children: [
+        Text('So du: $totalBalance VND'),
+        // ...
+      ]),
+    );
+  }
+}
+\end{lstlisting}
+
+% ── 2.3 PHÂN TÍCH USECASE ───────────────────────────────────────────────────
+\section{Phân tích Usecase}
+
+\subsection{Sơ đồ Usecase tổng quát}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  usecase/.style={draw, ellipse, minimum width=3.5cm, minimum height=1.1cm,
+    align=center, font=\small},
+  system/.style={draw, dashed, rounded corners, inner sep=15pt},
+  >=Stealth
+]
+
+% System boundary
+\node[system, minimum width=11cm, minimum height=16cm] (sys) at (5.5, -1) {};
+\node[above, font=\bfseries] at (sys.north) {Hệ thống G13 Money};
+
+% Actor
+\node (user) at (-1.5, -1) {\includegraphics[width=0.6cm]{example-image}};
+\node[below, font=\small] at (-1.5, -1.8) {Người dùng};
+
+% Use cases
+\node[usecase] (uc1) at (5.5, 6) {UC01: Đăng ký\\tài khoản};
+\node[usecase] (uc2) at (5.5, 4.2) {UC02: Đăng nhập\\(email + sinh trắc)};
+\node[usecase] (uc3) at (5.5, 2.4) {UC03: Quản lý\\giao dịch thu/chi};
+\node[usecase] (uc4) at (5.5, 0.6) {UC04: Quản lý\\ngân sách};
+\node[usecase] (uc5) at (5.5, -1.2) {UC05: Xem tổng quan\\tài chính};
+\node[usecase] (uc6) at (5.5, -3.0) {UC06: Xem báo cáo\\thống kê};
+\node[usecase] (uc7) at (5.5, -4.8) {UC07: Quản lý ví\\và tài khoản};
+\node[usecase] (uc8) at (5.5, -6.6) {UC08: Quản lý\\danh mục};
+\node[usecase] (uc9) at (5.5, -8.4) {UC09: Chat\\trợ lý AI};
+
+% Connections
+\foreach \uc in {uc1,uc2,uc3,uc4,uc5,uc6,uc7,uc8,uc9}
+  \draw[->] (user) -- (\uc);
+
+\end{tikzpicture}
+\caption{Sơ đồ Usecase tổng quát}
+\label{fig:usecase-diagram}
+\end{figure}
+
+\subsection{Đặc tả Usecase chi tiết}
+
+\begin{table}[H]
+\centering
+\caption{UC03 --- Quản lý giao dịch thu/chi}
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Mã Usecase} & UC03 \\
+\hline
+\textbf{Tên} & Quản lý giao dịch thu/chi \\
+\hline
+\textbf{Actor} & Người dùng đã đăng nhập \\
+\hline
+\textbf{Mô tả} & Cho phép người dùng thêm, xem, sửa, xóa giao dịch thu nhập hoặc chi tiêu \\
+\hline
+\textbf{Tiền điều kiện} & Người dùng đã đăng nhập, có ít nhất 1 ví và 1 danh mục \\
+\hline
+\textbf{Luồng chính} &
+\begin{enumerate}[noitemsep,leftmargin=*]
+\item Người dùng nhấn nút ``+'' trên bottom nav
+\item Hệ thống hiển thị form thêm giao dịch
+\item Người dùng nhập: tên, số tiền, loại (thu/chi), danh mục, ví, ngày
+\item Người dùng nhấn ``Lưu''
+\item Hệ thống validate dữ liệu → ghi vào Firestore → cập nhật số dư ví
+\item Hệ thống đồng bộ và cập nhật UI
+\end{enumerate} \\
+\hline
+\textbf{Luồng thay thế} & 5a. Validate thất bại → hiển thị thông báo lỗi \\
+\hline
+\textbf{Hậu điều kiện} & Giao dịch được lưu, số dư ví cập nhật, dashboard cập nhật \\
+\hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{UC04 --- Quản lý ngân sách}
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Mã Usecase} & UC04 \\
+\hline
+\textbf{Tên} & Quản lý ngân sách \\
+\hline
+\textbf{Actor} & Người dùng đã đăng nhập \\
+\hline
+\textbf{Mô tả} & Tạo, xem, sửa, xóa ngân sách với hạn mức chi tiêu theo danh mục \\
+\hline
+\textbf{Tiền điều kiện} & Đã đăng nhập, có ít nhất 1 danh mục \\
+\hline
+\textbf{Luồng chính} &
+\begin{enumerate}[noitemsep,leftmargin=*]
+\item Người dùng mở tab Ngân sách
+\item Hệ thống hiển thị danh sách ngân sách hiện tại với thanh tiến độ
+\item Người dùng nhấn ``+'' để tạo ngân sách mới
+\item Nhập: tên, danh mục, hạn mức, ví, thời gian
+\item Nhấn ``Lưu'' → hệ thống ghi vào Firestore
+\item Hệ thống tự động tính toán spent từ các giao dịch tương ứng
+\end{enumerate} \\
+\hline
+\textbf{Hậu điều kiện} & Ngân sách được tạo, hiển thị trong danh sách với tiến độ \\
+\hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{UC09 --- Chat trợ lý AI}
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Mã Usecase} & UC09 \\
+\hline
+\textbf{Tên} & Chat trợ lý AI tài chính \\
+\hline
+\textbf{Actor} & Người dùng đã đăng nhập \\
+\hline
+\textbf{Mô tả} & Hỏi đáp tài chính với AI dựa trên dữ liệu thực tế \\
+\hline
+\textbf{Tiền điều kiện} & Đã đăng nhập, có dữ liệu giao dịch \\
+\hline
+\textbf{Luồng chính} &
+\begin{enumerate}[noitemsep,leftmargin=*]
+\item Người dùng mở AI Chat từ trang Tổng quan
+\item Nhập câu hỏi (ví dụ: ``Mình nên tiết kiệm bao nhiêu?'')
+\item Hệ thống thu thập dữ liệu tài chính hiện tại
+\item Gọi Gemini API với prompt + context data
+\item Hiển thị câu trả lời của AI
+\end{enumerate} \\
+\hline
+\textbf{Luồng thay thế} & 4a. API lỗi/timeout → Sử dụng phân tích local (rules-based) \\
+\hline
+\end{tabularx}
+\end{table}
+
+% ── 2.4 THIẾT KẾ ĐIỀU HƯỚNG ─────────────────────────────────────────────────
+\section{Thiết kế Điều hướng và Cấu trúc Widget}
+
+\subsection{Navigation Flow}
+
+Ứng dụng sử dụng \textbf{Named Routes} tập trung trong lớp \texttt{AppRoutes}. Tất cả route paths được khai báo dưới dạng \texttt{static const String} để tránh lỗi typo.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  page/.style={draw, rounded corners=5pt, minimum width=2.4cm, minimum height=0.9cm,
+    align=center, font=\footnotesize, fill=blue!8},
+  nav/.style={draw, rounded corners=5pt, minimum width=2.4cm, minimum height=0.9cm,
+    align=center, font=\footnotesize, fill=green!12},
+  >=Stealth, every edge/.style={draw, ->, font=\tiny}
+]
+
+\node[page, fill=yellow!15] (splash) at (0, 0) {SplashScreen\\(\texttt{/})};
+\node[page] (login) at (4.5, 1.2) {LoginPage\\(\texttt{/login})};
+\node[nav, fill=green!20] (home) at (4.5, -1.2) {MainShellPage\\(\texttt{/home})};
+
+% Tabs
+\node[page] (ov) at (-1, -3.5) {OverviewPage\\(Tab 0)};
+\node[page] (tx) at (2.5, -3.5) {TransactionScreen\\(Tab 1)};
+\node[page] (bg) at (6, -3.5) {BudgetsPage\\(Tab 3)};
+\node[page] (pf) at (9.5, -3.5) {ProfilePage\\(Tab 4)};
+
+% Sub-pages
+\node[page, fill=orange!10] (add) at (2.5, -5.5) {AddTransaction\\FormPage};
+\node[page, fill=orange!10] (rpt) at (-1, -5.5) {ReportsScreen\\(\texttt{/reports})};
+\node[page, fill=orange!10] (ai) at (-1, -7.5) {AiChatPage};
+\node[page, fill=orange!10] (wal) at (6, -5.5) {ManageWallets\\(\texttt{/manage-wallets})};
+\node[page, fill=orange!10] (cat) at (9.5, -5.5) {ManageCategories\\(\texttt{/manage-categories})};
+\node[page, fill=orange!10] (edit) at (9.5, -7.5) {EditProfile\\(\texttt{/edit-profile})};
+\node[page, fill=orange!10] (pwd) at (6, -7.5) {ChangePassword\\(\texttt{/change-password})};
+\node[page, fill=orange!10] (about) at (2.5, -7.5) {AboutPage\\(\texttt{/about})};
+
+\draw (splash) -- node[above] {session} (home);
+\draw (splash) -- node[above] {no session} (login);
+\draw (login) -- (home);
+
+\draw (home) -- (ov);
+\draw (home) -- (tx);
+\draw (home) -- (bg);
+\draw (home) -- (pf);
+
+\draw (ov) -- (rpt);
+\draw (ov) -- (ai);
+\draw (tx) -- (add);
+\draw (pf) -- (wal);
+\draw (pf) -- (cat);
+\draw (pf) -- (edit);
+\draw (pf) -- (pwd);
+\draw (pf) -- (about);
+
+\end{tikzpicture}
+\caption{Sơ đồ điều hướng chi tiết của ứng dụng}
+\label{fig:nav-detail}
+\end{figure}
+
+\subsection{Cấu trúc Widget Tree chính}
+
+\begin{lstlisting}[caption={Widget tree đơn giản hóa}]
+ProviderScope                     // Riverpod root
+  ExpenseManagerApp               // MaterialApp
+    MainShellPage                 // Shell + Bottom Nav
+      Scaffold
+        body: IndexedStack
+          [0] OverviewPage        // Dashboard
+          [1] TransactionScreen   // Danh sach GD
+          [3] BudgetsPage         // Ngan sach
+          [4] ProfilePage         // Cai dat
+        bottomNavigationBar:
+          MoneyBottomNav          // Custom bottom nav
+            FAB (index 2)         // Nut + (them GD)
+\end{lstlisting}
+
+% ── 2.5 THIẾT KẾ CƠ SỞ DỮ LIỆU ────────────────────────────────────────────
+\section{Thiết kế Cơ sở dữ liệu}
+
+\subsection{Lựa chọn CSDL: Firestore vs SQLite}
+
+\begin{table}[H]
+\centering
+\caption{So sánh Firestore và SQLite cho dự án}
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Tiêu chí} & \textbf{Cloud Firestore} & \textbf{SQLite} \\
+\hline
+Loại & Cloud NoSQL & Local SQL \\
+\hline
+Đồng bộ & Realtime giữa các thiết bị & Không (cần tự sync) \\
+\hline
+Offline & Có (offline persistence) & Có (native) \\
+\hline
+Schema & Flexible (schemaless) & Cứng (schema required) \\
+\hline
+Server & Không cần & Không cần \\
+\hline
+Bảo mật & Security Rules tầng server & Chỉ bảo mật ở client \\
+\hline
+\end{tabularx}
+\end{table}
+
+\textbf{Kết luận:} Chọn \textbf{Cloud Firestore} vì cần đồng bộ đa thiết bị, security rules tầng server, và tích hợp sẵn với Firebase Auth.
+
+\subsection{Nguyên tắc thiết kế dữ liệu}
+
+\begin{enumerate}
+  \item \textbf{User-rooted:} Mỗi tài khoản có 1 node gốc \texttt{users/\{uid\}}. Toàn bộ dữ liệu nằm dưới node này.
+  \item \textbf{Denormalization:} Lưu thêm \texttt{categoryName}, \texttt{walletName} trong document giao dịch để tránh join query (Firestore không hỗ trợ JOIN).
+  \item \textbf{Computed fields:} Tạo \texttt{yearMonth}, \texttt{year}, \texttt{month} khi ghi document để hỗ trợ query tổng hợp nhanh.
+  \item \textbf{Soft delete:} Ví không bị xóa thật, chỉ đánh dấu \texttt{isArchived = true}.
+  \item \textbf{Server timestamps:} Sử dụng \texttt{FieldValue.serverTimestamp()} cho \texttt{createdAt} và \texttt{updatedAt}.
+\end{enumerate}
+
+\subsection{Sơ đồ ER (Entity Relationship)}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  entity/.style={draw, rounded corners=4pt, minimum width=3.2cm, minimum height=0.9cm,
+    align=center, font=\small\ttfamily, fill=blue!10},
+  >=Stealth
+]
+
+\node[entity, fill=blue!20] (user) at (0, 0) {users/\{uid\}};
+
+\node[entity] (acc) at (-5.5, -2.5) {accounts/\{id\}};
+\node[entity] (tx) at (-1.8, -2.5) {transactions/\{id\}};
+\node[entity] (bg) at (1.8, -2.5) {budgets/\{id\}};
+\node[entity] (cat) at (5.5, -2.5) {categories/\{id\}};
+
+\node[entity, fill=green!10] (noti) at (-3.5, -5) {notifications/\{id\}};
+\node[entity, fill=green!10] (spro) at (0.5, -5) {settings/profile};
+\node[entity, fill=green!10] (spref) at (4.5, -5) {settings/preferences};
+
+\draw[->] (user) -- node[left, font=\tiny] {1:N} (acc);
+\draw[->] (user) -- node[left, font=\tiny] {1:N} (tx);
+\draw[->] (user) -- node[right, font=\tiny] {1:N} (bg);
+\draw[->] (user) -- node[right, font=\tiny] {1:N} (cat);
+\draw[->] (user) -- node[left, font=\tiny] {1:N} (noti);
+\draw[->] (user) -- node[left, font=\tiny] {1:1} (spro);
+\draw[->] (user) -- node[right, font=\tiny] {1:1} (spref);
+
+\end{tikzpicture}
+\caption{Sơ đồ quan hệ các collection trong Firestore}
+\label{fig:er-diagram}
+\end{figure}
+
+\subsection{Chi tiết các collection}
+
+\begin{longtable}{|l|l|c|p{6cm}|}
+\caption{Collection \texttt{users/\{uid\}} --- Thông tin người dùng} \\
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Mô tả} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Mô tả} \\
+\hline
+\endhead
+fullName & string & Có & Họ tên đầy đủ \\
+\hline
+email & string & Có & Email đăng nhập (unique) \\
+\hline
+phone & string & Không & Số điện thoại \\
+\hline
+avatarInitials & string & Có & Chữ cái đầu để hiển thị avatar \\
+\hline
+avatarUrl & string & Không & URL ảnh đại diện \\
+\hline
+currency & string & Có & Mặc định: \texttt{VND} \\
+\hline
+locale & string & Có & \texttt{vi} hoặc \texttt{en} \\
+\hline
+joinedAt & timestamp & Có & Thời điểm tạo tài khoản \\
+\hline
+createdAt & timestamp & Có & Server timestamp \\
+\hline
+updatedAt & timestamp & Có & Server timestamp \\
+\hline
+\end{longtable}
+
+\begin{longtable}{|l|l|c|p{6cm}|}
+\caption{Collection \texttt{transactions/\{id\}} --- Giao dịch} \\
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Mô tả} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Mô tả} \\
+\hline
+\endhead
+title & string & Có & Tiêu đề giao dịch \\
+\hline
+note & string & Không & Ghi chú bổ sung \\
+\hline
+amount & number & Có & Số tiền giao dịch \\
+\hline
+type & string & Có & \texttt{expense}, \texttt{income}, \texttt{debt} \\
+\hline
+isIncome & bool & Có & true = thu nhập, false = chi tiêu \\
+\hline
+categoryId & string & Không & ID danh mục (tham chiếu) \\
+\hline
+categoryName & string & Có & Tên danh mục (denormalized) \\
+\hline
+walletId & string & Không & ID ví (tham chiếu) \\
+\hline
+walletName & string & Có & Tên ví (denormalized) \\
+\hline
+date & timestamp & Có & Ngày giao dịch \\
+\hline
+year & number & Có & Năm (trích từ date) \\
+\hline
+month & number & Có & Tháng (trích từ date) \\
+\hline
+day & number & Có & Ngày (trích từ date) \\
+\hline
+yearMonth & string & Có & Định dạng \texttt{YYYY-MM} \\
+\hline
+attachmentUrls & array & Không & URL ảnh đính kèm \\
+\hline
+tags & array & Không & Nhãn phân loại bổ sung \\
+\hline
+createdAt & timestamp & Có & Server timestamp \\
+\hline
+updatedAt & timestamp & Có & Server timestamp \\
+\hline
+\end{longtable}
+
+\begin{longtable}{|l|l|c|p{6cm}|}
+\caption{Collection \texttt{budgets/\{id\}} --- Ngân sách} \\
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Mô tả} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Field} & \textbf{Type} & \textbf{Required} & \textbf{Mô tả} \\
+\hline
+\endhead
+title & string & Có & Tên ngân sách \\
+\hline
+categoryId & string & Không & Danh mục áp dụng \\
+\hline
+categoryName & string & Có & Tên danh mục (denormalized) \\
+\hline
+walletId & string & Không & Ví áp dụng \\
+\hline
+walletName & string & Có & Tên ví \\
+\hline
+limit & number & Có & Hạn mức chi tiêu \\
+\hline
+spent & number & Có & Tổng đã chi (cache, tính từ giao dịch) \\
+\hline
+startDate & timestamp & Có & Ngày bắt đầu chu kỳ \\
+\hline
+endDate & timestamp & Có & Ngày kết thúc chu kỳ \\
+\hline
+periodKey & string & Có & Khóa chu kỳ (\texttt{YYYY-MM}) \\
+\hline
+colorHex & string & Không & Mã màu hiển thị \\
+\hline
+iconKey & string & Không & Key icon \\
+\hline
+isActive & bool & Có & Trạng thái bật/tắt \\
+\hline
+createdAt & timestamp & Có & Server timestamp \\
+\hline
+updatedAt & timestamp & Có & Server timestamp \\
+\hline
+\end{longtable}
+
+\subsection{Chỉ mục (Index) khuyến nghị}
+
+\begin{table}[H]
+\centering
+\caption{Composite indexes cho Firestore}
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Collection} & \textbf{Index fields} \\
+\hline
+transactions & \texttt{(date DESC)} \\
+\hline
+transactions & \texttt{(yearMonth ASC, type ASC, date DESC)} \\
+\hline
+transactions & \texttt{(categoryName ASC, date DESC)} \\
+\hline
+transactions & \texttt{(walletId ASC, date DESC)} \\
+\hline
+budgets & \texttt{(periodKey ASC, isActive ASC)} \\
+\hline
+budgets & \texttt{(categoryName ASC, periodKey ASC)} \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Security Rules}
+
+\begin{lstlisting}[style=rulesStyle, caption={Firestore Security Rules --- G13 Money}]
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn()
+        && request.auth.uid == userId;
+    }
+
+    // User data: chi owner moi doc/ghi
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      match /accounts/{accountId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /transactions/{transactionId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /budgets/{budgetId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /categories/{categoryId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /notifications/{notificationId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /settings/{settingId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // SePay bindings: chi owner cua binding
+    match /sepay_bindings/{bindingId} {
+      allow read: if isSignedIn()
+        && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.uid
+           == request.auth.uid;
+    }
+
+    // Mac dinh: chan tat ca
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+\end{lstlisting}

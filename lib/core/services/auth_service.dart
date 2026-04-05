@@ -471,6 +471,11 @@ class AuthService {
           vi: 'Vui lòng đăng nhập lại để tiếp tục',
           en: 'Please sign in again to continue',
         );
+      case 'network-request-failed':
+        return LanguageService.tr(
+          vi: 'Không có kết nối mạng',
+          en: 'No internet connection',
+        );
       default:
         return LanguageService.tr(
           vi: 'Có lỗi xác thực. Vui lòng thử lại',

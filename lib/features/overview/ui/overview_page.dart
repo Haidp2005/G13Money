@@ -5,6 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/routes.dart';
 import '../../../core/services/ai_finance_service.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/connectivity_service.dart';
+import '../../../core/services/language_service.dart';
+import '../../../core/state/app_settings_providers.dart';
+import '../../shared/widgets/no_network_widget.dart';
 import '../../accounts/data/accounts_repository.dart';
 import '../../accounts/data/categories_repository.dart';
 import '../../accounts/models/account.dart';
@@ -38,9 +42,12 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
     });
   }
 
+  bool _isOffline = false;
+
   Future<void> _loadOverviewData() async {
     ref.read(overviewLoadingProvider.notifier).state = true;
     ref.read(overviewErrorProvider.notifier).state = null;
+    setState(() => _isOffline = false);
 
     try {
       await Future.wait([
@@ -57,9 +64,15 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
           );
       ref.read(overviewLoadingProvider.notifier).state = false;
     } catch (e) {
+      final hasNet = await ConnectivityService.hasConnection();
+      if (!mounted) return;
       ref.read(overviewLoadingProvider.notifier).state = false;
-      ref.read(overviewErrorProvider.notifier).state =
-          e.toString().replaceFirst('Exception: ', '');
+      if (!hasNet) {
+        setState(() => _isOffline = true);
+      } else {
+        ref.read(overviewErrorProvider.notifier).state =
+            e.toString().replaceFirst('Exception: ', '');
+      }
     }
   }
 
@@ -156,7 +169,10 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')} tháng ${date.month} ${date.year}';
+    final day = date.day.toString().padLeft(2, '0');
+    return LanguageService.isVietnamese
+        ? '$day tháng ${date.month} ${date.year}'
+        : '${date.year}-${date.month.toString().padLeft(2, '0')}-$day';
   }
 
   IconData _walletIcon(String type) {
@@ -183,6 +199,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(appLanguageProvider); // Rebuild on language change
     final selectedPeriod = ref.watch(overviewSelectedPeriodProvider);
     final isLoading = ref.watch(overviewLoadingProvider);
     final loadError = ref.watch(overviewErrorProvider);
@@ -204,6 +221,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
       body: SafeArea(
         child: isLoading
             ? const Center(child: CircularProgressIndicator())
+          : _isOffline
+            ? NoNetworkWidget(onRetry: _loadOverviewData)
           : loadError != null
             ? _buildErrorState(scheme, loadError)
                 : RefreshIndicator(
@@ -263,7 +282,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
             const Icon(Icons.error_outline, size: 42),
             const SizedBox(height: 10),
             Text(
-              'Không tải được dữ liệu overview',
+              LanguageService.tr(vi: 'Không tải được dữ liệu overview', en: 'Could not load overview data'),
               style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
             ),
@@ -277,7 +296,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
             FilledButton.icon(
               onPressed: _loadOverviewData,
               icon: const Icon(Icons.refresh),
-              label: const Text('Thử lại'),
+              label: Text(LanguageService.tr(vi: 'Thử lại', en: 'Retry')),
             ),
           ],
         ),
@@ -320,7 +339,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Xin chào! 👋',
+                LanguageService.tr(vi: 'Xin chào! 👋', en: 'Hello! 👋'),
                 style: TextStyle(
                   color: scheme.outline,
                   fontSize: 13,
@@ -339,8 +358,6 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
             ],
           ),
         ),
-        _headerIconButton(Icons.search_rounded, scheme),
-        const SizedBox(width: 8),
         _headerIconButton(
           Icons.notifications_none_rounded,
           scheme,
@@ -399,7 +416,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
           Row(
             children: [
               Text(
-                'Tổng số dư',
+                LanguageService.tr(vi: 'Tổng số dư', en: 'Total balance'),
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.85),
                   fontSize: 14,
@@ -423,13 +440,13 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
             children: [
               _balanceSummaryChip(
                 icon: Icons.arrow_upward_rounded,
-                label: 'Thu nhập',
+                label: LanguageService.tr(vi: 'Thu nhập', en: 'Income'),
                 value: _formatCurrency(totalIncome),
               ),
               const SizedBox(width: 12),
               _balanceSummaryChip(
                 icon: Icons.arrow_downward_rounded,
-                label: 'Chi tiêu',
+                label: LanguageService.tr(vi: 'Chi tiêu', en: 'Expense'),
                 value: _formatCurrency(totalExpense),
               ),
             ],
@@ -509,8 +526,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader(
-          title: 'Báo cáo',
-          action: 'Xem báo cáo',
+          title: LanguageService.tr(vi: 'Báo cáo', en: 'Reports'),
+          action: LanguageService.tr(vi: 'Xem báo cáo', en: 'View reports'),
           scheme: scheme,
           onTap: () => Navigator.pushNamed(context, AppRoutes.reports),
         ),
@@ -608,7 +625,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                     Expanded(
                       child: Column(
                         children: [
-                          Text('Tổng thu', style: TextStyle(color: scheme.outline, fontSize: 12)),
+                          Text(LanguageService.tr(vi: 'Tổng thu', en: 'Total income'), style: TextStyle(color: scheme.outline, fontSize: 12)),
                           const SizedBox(height: 4),
                           Text(
                             _formatCurrency(totalIncome),
@@ -621,7 +638,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                     Expanded(
                       child: Column(
                         children: [
-                          Text('Tổng chi', style: TextStyle(color: scheme.outline, fontSize: 12)),
+                          Text(LanguageService.tr(vi: 'Tổng chi', en: 'Total expense'), style: TextStyle(color: scheme.outline, fontSize: 12)),
                           const SizedBox(height: 4),
                           Text(
                             _formatCurrency(totalExpense),
@@ -649,8 +666,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader(
-          title: 'Gợi ý tài chính AI',
-          action: 'Tạo mới',
+          title: LanguageService.tr(vi: 'Gợi ý tài chính AI', en: 'AI Finance Tips'),
+          action: LanguageService.tr(vi: 'Tạo mới', en: 'Generate'),
           scheme: scheme,
           onTap: () => _generateAiAdvice(transactions, wallets),
         ),
@@ -666,7 +683,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Nhận 3 gợi ý hành động dựa trên dữ liệu thu chi của bạn',
+                      LanguageService.tr(vi: 'Nhận 3 gợi ý hành động dựa trên dữ liệu thu chi của bạn', en: 'Get 3 action tips based on your income & expense data'),
                       style: TextStyle(
                         color: scheme.onSurface,
                         fontSize: 13,
@@ -684,7 +701,7 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                 ),
               if (!_aiLoading && (_aiAdvice == null || _aiAdvice!.trim().isEmpty))
                 Text(
-                  'Nhấn "Tạo gợi ý AI" để nhận tư vấn tài chính cá nhân hoá.',
+                  LanguageService.tr(vi: 'Nhấn "Tạo gợi ý AI" để nhận tư vấn tài chính cá nhân hoá.', en: 'Tap "Generate AI Tips" to get personalised financial advice.'),
                   style: TextStyle(color: scheme.outline, fontSize: 13),
                 ),
               if (!_aiLoading && _aiAdvice != null && _aiAdvice!.trim().isNotEmpty)
@@ -715,8 +732,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
                       icon: const Icon(Icons.psychology_alt_outlined),
                       label: Text(
                         AiFinanceService.isConfigured
-                            ? 'Tạo gợi ý AI'
-                            : 'Tạo gợi ý (local + AI)',
+                            ? LanguageService.tr(vi: 'Tạo gợi ý AI', en: 'Generate AI Tips')
+                            : LanguageService.tr(vi: 'Tạo gợi ý (local + AI)', en: 'Generate (local + AI)'),
                       ),
                     ),
                   ),
@@ -753,12 +770,12 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(title: 'Ví của tôi', action: 'Xem tất cả', scheme: scheme),
+        _sectionHeader(title: LanguageService.tr(vi: 'Ví của tôi', en: 'My wallets'), action: LanguageService.tr(vi: 'Xem tất cả', en: 'View all'), scheme: scheme),
         const SizedBox(height: 14),
         _sectionCard(
           scheme: scheme,
           child: wallets.isEmpty
-              ? Text('Chưa có ví', style: TextStyle(color: scheme.outline))
+              ? Text(LanguageService.tr(vi: 'Chưa có ví', en: 'No wallets'), style: TextStyle(color: scheme.outline))
               : Column(
                   children: wallets.asMap().entries.map((entry) {
                     final isLast = entry.key == wallets.length - 1;
@@ -788,12 +805,12 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(title: 'Giao dịch gần đây', action: 'Xem tất cả', scheme: scheme),
+        _sectionHeader(title: LanguageService.tr(vi: 'Giao dịch gần đây', en: 'Recent transactions'), action: LanguageService.tr(vi: 'Xem tất cả', en: 'View all'), scheme: scheme),
         const SizedBox(height: 14),
         _sectionCard(
           scheme: scheme,
           child: recent.isEmpty
-              ? Text('Chưa có giao dịch', style: TextStyle(color: scheme.outline))
+              ? Text(LanguageService.tr(vi: 'Chưa có giao dịch', en: 'No transactions'), style: TextStyle(color: scheme.outline))
               : Column(
                   children: recent.asMap().entries.map((entry) {
                     final isLast = entry.key == recent.length - 1;
@@ -898,8 +915,8 @@ class _OverviewPageState extends ConsumerState<OverviewPage> {
       ),
       child: Row(
         children: [
-          _periodTab('Tuần', 0, scheme, selectedPeriod),
-          _periodTab('Tháng', 1, scheme, selectedPeriod),
+          _periodTab(LanguageService.tr(vi: 'Tuần', en: 'Week'), 0, scheme, selectedPeriod),
+          _periodTab(LanguageService.tr(vi: 'Tháng', en: 'Month'), 1, scheme, selectedPeriod),
         ],
       ),
     );

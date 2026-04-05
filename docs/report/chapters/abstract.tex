@@ -1,0 +1,28 @@
+% ════════════════════════════════════════════════════════════════════════════
+% TÓM TẮT NỘI DUNG (ABSTRACT)
+% ════════════════════════════════════════════════════════════════════════════
+\chapter*{TÓM TẮT NỘI DUNG}
+\addcontentsline{toc}{chapter}{TÓM TẮT NỘI DUNG}
+
+Trong bối cảnh kinh tế số phát triển nhanh chóng tại Việt Nam, việc quản lý tài chính cá nhân trở thành nhu cầu thiết yếu đối với mọi tầng lớp, đặc biệt là sinh viên và người đi làm trẻ. Tuy nhiên, phần lớn người dùng Việt Nam vẫn chưa có công cụ phù hợp để theo dõi và kiểm soát dòng tiền hàng ngày một cách hiệu quả.
+
+Đồ án \textbf{``G13 Money --- Ứng dụng quản lý tài chính cá nhân''} được xây dựng nhằm giải quyết bài toán trên. Ứng dụng được phát triển bằng framework \textbf{Flutter} (Dart) cho phép chạy đa nền tảng (Android, iOS), kết hợp hệ sinh thái \textbf{Google Firebase} làm backend (Authentication, Cloud Firestore, Cloud Messaging, Cloud Functions, Storage) và tích hợp \textbf{Google Gemini AI} để cung cấp tính năng trợ lý tài chính thông minh.
+
+\textbf{Các tính năng chính của ứng dụng bao gồm:}
+
+\begin{itemize}[noitemsep]
+  \item Ghi chép giao dịch thu chi nhanh chóng với hệ thống danh mục đa dạng và quản lý đa ví/tài khoản (tiền mặt, ngân hàng, ví điện tử).
+  \item Quản lý ngân sách theo danh mục với thanh tiến độ trực quan và hệ thống cảnh báo thông minh khi chi tiêu vượt hạn mức.
+  \item Báo cáo thống kê tài chính qua biểu đồ cột (so sánh thu/chi) và biểu đồ tròn (phân tích chi tiêu theo danh mục).
+  \item Trợ lý tài chính AI tích hợp Google Gemini, cung cấp gợi ý cá nhân hóa và hỗ trợ chat tương tác dựa trên dữ liệu tài chính thực tế.
+  \item Tự động ghi nhận giao dịch ngân hàng thông qua tích hợp webhook SePay.
+  \item Hỗ trợ đa ngôn ngữ (Tiếng Việt, Tiếng Anh) và chế độ giao diện sáng/tối.
+  \item Bảo mật đa lớp: Firebase Authentication, Firestore Security Rules, xác thực sinh trắc học (vân tay, FaceID), và lưu trữ token an toàn.
+\end{itemize}
+
+Về mặt kiến trúc, ứng dụng áp dụng mô hình \textbf{Feature-First Architecture} kết hợp \textbf{Repository Pattern} cho tầng dữ liệu và \textbf{Riverpod} cho quản lý trạng thái (state management). Thiết kế này đảm bảo tính module hóa cao, dễ bảo trì và mở rộng trong tương lai.
+
+Kết quả đồ án là một ứng dụng di động hoàn chỉnh, sẵn sàng triển khai trên Google Play Store và Apple App Store, với đầy đủ tài liệu kỹ thuật và hướng dẫn sử dụng.
+
+\vspace{0.5cm}
+\noindent\textbf{Từ khóa:} Flutter, Dart, Firebase, Cloud Firestore, Riverpod, State Management, Gemini AI, Material Design 3, Quản lý tài chính cá nhân, SePay, Đa nền tảng.

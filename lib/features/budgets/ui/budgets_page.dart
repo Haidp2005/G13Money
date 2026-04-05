@@ -8,6 +8,8 @@ import '../../transactions/models/transaction.dart';
 import '../models/budget.dart';
 import '../state/budgets_state.dart';
 import 'budget_form.dart';
+import '../../../core/services/connectivity_service.dart';
+import '../../shared/widgets/no_network_widget.dart';
 
 
 class BudgetsPage extends ConsumerStatefulWidget {
@@ -28,17 +30,31 @@ class _BudgetsPageState extends ConsumerState<BudgetsPage> {
     });
   }
 
+  bool _isOffline = false;
+
   Future<void> _loadData() async {
     ref.read(budgetsLoadingProvider.notifier).state = true;
+    setState(() => _isOffline = false);
 
-    await Future.wait([
-      TransactionsRepository.instance.loadTransactions(),
-      BudgetsRepository.instance.loadBudgets(),
-    ]);
+    try {
+      await Future.wait([
+        TransactionsRepository.instance.loadTransactions(),
+        BudgetsRepository.instance.loadBudgets(),
+      ]);
 
-    ref.read(budgetsListProvider.notifier).state =
-        List<Budget>.unmodifiable(BudgetsRepository.instance.budgets);
-    ref.read(budgetsLoadingProvider.notifier).state = false;
+      ref.read(budgetsListProvider.notifier).state =
+          List<Budget>.unmodifiable(BudgetsRepository.instance.budgets);
+    } catch (_) {
+      final hasNet = await ConnectivityService.hasConnection();
+      if (!mounted) return;
+      if (!hasNet) {
+        setState(() => _isOffline = true);
+      }
+    } finally {
+      if (mounted) {
+        ref.read(budgetsLoadingProvider.notifier).state = false;
+      }
+    }
   }
 
   @override
@@ -138,6 +154,11 @@ class _BudgetsPageState extends ConsumerState<BudgetsPage> {
                 ? const SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(child: CircularProgressIndicator()),
+                  )
+              : _isOffline
+                ? SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: NoNetworkWidget(onRetry: _loadData),
                   )
               : sourceBudgets.isEmpty
                 ? SliverFillRemaining(

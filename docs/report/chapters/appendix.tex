@@ -1,0 +1,120 @@
+% ════════════════════════════════════════════════════════════════════════════
+% PHỤ LỤC: TIẾN ĐỘ THỰC HIỆN
+% ════════════════════════════════════════════════════════════════════════════
+\chapter*{PHỤ LỤC}
+\addcontentsline{toc}{chapter}{PHỤ LỤC}
+
+\section*{A. Tiến độ thực hiện}
+
+\begin{table}[H]
+\centering
+\caption{Bảng đối chiếu tiến độ thực tế so với đề cương}
+\label{tab:progress}
+\begin{tabularx}{\textwidth}{|c|c|X|c|c|}
+\hline
+\textbf{STT} & \textbf{Tuần} & \textbf{Nội dung công việc} & \textbf{Kế hoạch} & \textbf{Thực tế} \\
+\hline
+1 & 1--2 & Phân tích yêu cầu, khảo sát ứng dụng tương tự, thiết kế wireframe, xác định kiến trúc & Tuần 1--2 & Đúng \\
+\hline
+2 & 3--4 & Thiết kế CSDL Firestore, setup Firebase project, cấu hình Flutter, tạo project structure & Tuần 3--4 & Đúng \\
+\hline
+3 & 5--6 & Xây dựng UI cơ bản: Splash, Login/Register, Layout chính (Bottom Nav, Shell) & Tuần 5--6 & Đúng \\
+\hline
+4 & 7--8 & Tích hợp Firebase Auth, Firestore CRUD cho giao dịch, Overview dashboard & Tuần 7--8 & Đúng \\
+\hline
+5 & 9--10 & Quản lý ngân sách, quản lý ví/tài khoản, quản lý danh mục & Tuần 9--10 & Đúng \\
+\hline
+6 & 11--12 & Biểu đồ báo cáo (fl\_chart), thông báo (FCM + local), cài đặt (theme, language) & Tuần 11--12 & Đúng \\
+\hline
+7 & 13--14 & Tích hợp Gemini AI (gợi ý + chat), SePay webhook (Functions + Cloudflare) & Tuần 13--14 & Đúng \\
+\hline
+8 & 15--16 & Polish UI/UX, animation, dark mode, responsive testing, bug fixing & Tuần 15--16 & Đúng \\
+\hline
+9 & 17--18 & Viết tài liệu kỹ thuật (README, architecture, schema, API docs, user guide) & Tuần 17--18 & Đúng \\
+\hline
+10 & 19--20 & Viết báo cáo LaTeX, quay video demo, chuẩn bị slide thuyết trình & Tuần 19--20 & Đúng \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section*{B. Phân công công việc}
+
+\begin{table}[H]
+\centering
+\caption{Phân công công việc trong nhóm}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Thành viên} & \textbf{Vai trò} & \textbf{Công việc chính} \\
+\hline
+Nguyễn Văn A & Team Lead & Kiến trúc hệ thống, Firebase setup, Auth, AI integration, code review \\
+\hline
+Trần Thị B & Frontend & UI/UX toàn bộ screens, animation, responsive, theme system \\
+\hline
+Lê Văn C & Backend & Firestore schema, transactions CRUD, budgets, SePay webhook, testing \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section*{C. Cấu trúc thư mục dự án}
+
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize, frame=single, caption={Cấu trúc thư mục chính}]
+G13Money/
+|-- lib/
+|   |-- main.dart               # Entry point
+|   |-- firebase_options.dart    # Firebase config
+|   |-- app/
+|   |   |-- app.dart             # MaterialApp
+|   |   |-- routes.dart          # Named routes
+|   |-- core/
+|   |   |-- models/              # UserModel, AppNotification
+|   |   |-- services/            # Auth, AI, Theme, Language...
+|   |   |-- state/               # App-level providers
+|   |-- features/
+|       |-- auth/                # Login, Splash
+|       |-- overview/            # Dashboard, AI Chat
+|       |-- transactions/        # CRUD + Reports
+|       |-- budgets/             # Budget management
+|       |-- accounts/            # Profile, Settings, Wallets
+|       |-- shared/              # Shell, BottomNav, Helpers
+|-- docs/                        # Documentation
+|-- functions/                   # Firebase Cloud Functions
+|-- cloudflare/                  # Cloudflare Workers
+|-- firestore.rules              # Security Rules
+|-- firestore.indexes.json       # Composite indexes
+|-- pubspec.yaml                 # Dependencies
+\end{lstlisting}
+
+\section*{D. Hướng dẫn cài đặt và chạy dự án}
+
+\begin{enumerate}
+  \item \textbf{Clone repository:}
+  \begin{lstlisting}[basicstyle=\ttfamily\small, frame=none, numbers=none]
+git clone https://github.com/Haidp2005/G13Money.git
+cd G13Money
+  \end{lstlisting}
+
+  \item \textbf{Cài đặt dependencies:}
+  \begin{lstlisting}[basicstyle=\ttfamily\small, frame=none, numbers=none]
+flutter pub get
+  \end{lstlisting}
+
+  \item \textbf{Tạo file \texttt{flutter.env.json}:}
+  \begin{lstlisting}[style=jsonStyle, caption={flutter.env.json}]
+{
+  "GEMINI_API_KEY": "<your-key>",
+  "GEMINI_MODEL": "gemini-1.5-flash",
+  "SUPABASE_URL": "<your-url>",
+  "SUPABASE_ANON_KEY": "<your-key>"
+}
+  \end{lstlisting}
+
+  \item \textbf{Chạy ứng dụng:}
+  \begin{lstlisting}[basicstyle=\ttfamily\small, frame=none, numbers=none]
+flutter run --dart-define-from-file=flutter.env.json
+  \end{lstlisting}
+
+  \item \textbf{Build release APK:}
+  \begin{lstlisting}[basicstyle=\ttfamily\small, frame=none, numbers=none]
+flutter build apk --dart-define-from-file=flutter.env.json
+  \end{lstlisting}
+\end{enumerate}

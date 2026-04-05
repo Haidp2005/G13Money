@@ -6,6 +6,10 @@ import '../models/transaction.dart';
 import '../state/transaction_filter_state.dart';
 import '../state/transactions_provider.dart';
 import '../../shared/widgets/category_helper.dart';
+import '../../../core/services/language_service.dart';
+import '../../../core/state/app_settings_providers.dart';
+import '../../../core/services/connectivity_service.dart';
+import '../../shared/widgets/no_network_widget.dart';
 
 class TransactionScreen extends ConsumerStatefulWidget {
   const TransactionScreen({super.key});
@@ -74,10 +78,10 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
     final month = date.month.toString().padLeft(2, '0');
 
     if (current == today) {
-      return 'Hôm nay, $day/$month/${date.year}';
+      return '${LanguageService.tr(vi: 'Hôm nay', en: 'Today')}, $day/$month/${date.year}';
     }
     if (current == yesterday) {
-      return 'Hôm qua, $day/$month/${date.year}';
+      return '${LanguageService.tr(vi: 'Hôm qua', en: 'Yesterday')}, $day/$month/${date.year}';
     }
     return '$day/$month/${date.year}';
   }
@@ -154,17 +158,17 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
 
   String _searchHintText() {
     return switch (_searchScope) {
-      _SearchScope.category => 'Tìm theo danh mục...',
-      _SearchScope.note => 'Tìm theo ghi chú...',
-      _SearchScope.all => 'Tìm theo ghi chú hoặc danh mục...',
+      _SearchScope.category => LanguageService.tr(vi: 'Tìm theo danh mục...', en: 'Search by category...'),
+      _SearchScope.note => LanguageService.tr(vi: 'Tìm theo ghi chú...', en: 'Search by note...'),
+      _SearchScope.all => LanguageService.tr(vi: 'Tìm theo ghi chú hoặc danh mục...', en: 'Search by note or category...'),
     };
   }
 
   String _searchScopeLabel() {
     return switch (_searchScope) {
-      _SearchScope.category => 'Danh mục',
-      _SearchScope.note => 'Ghi chú',
-      _SearchScope.all => 'Ghi chú + Danh mục',
+      _SearchScope.category => LanguageService.tr(vi: 'Danh mục', en: 'Category'),
+      _SearchScope.note => LanguageService.tr(vi: 'Ghi chú', en: 'Note'),
+      _SearchScope.all => LanguageService.tr(vi: 'Ghi chú + Danh mục', en: 'Note + Category'),
     };
   }
 
@@ -176,6 +180,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(appLanguageProvider); // Rebuild on language change
     final scheme = Theme.of(context).colorScheme;
     final selectedFilterIndex = ref.watch(transactionFilterIndexProvider);
     final customRange = ref.watch(transactionCustomDateRangeProvider);
@@ -204,7 +209,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
             elevation: 0.5,
             shadowColor: scheme.shadow.withValues(alpha: 0.2),
             title: Text(
-              'Sổ giao dịch',
+              LanguageService.tr(vi: 'Sổ giao dịch', en: 'Transactions'),
               style: TextStyle(
                 color: scheme.onSurface,
                 fontWeight: FontWeight.w700,
@@ -212,12 +217,6 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
               ),
             ),
             centerTitle: true,
-            actions: [
-              IconButton(
-                icon: Icon(Icons.more_horiz, color: scheme.onSurfaceVariant),
-                onPressed: () {},
-              )
-            ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(156),
               child: Column(
@@ -245,7 +244,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                           ),
                           prefixIcon: Icon(Icons.search, color: scheme.onSurfaceVariant),
                           suffixIcon: PopupMenuButton<_SearchScope>(
-                            tooltip: 'Chọn phạm vi tìm kiếm',
+                            tooltip: LanguageService.tr(vi: 'Chọn phạm vi tìm kiếm', en: 'Select search scope'),
                             initialValue: _searchScope,
                             onSelected: (value) {
                               setState(() {
@@ -256,18 +255,18 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                               Icons.tune,
                               color: scheme.onSurfaceVariant,
                             ),
-                            itemBuilder: (context) => const [
+                            itemBuilder: (context) => [
                               PopupMenuItem(
                                 value: _SearchScope.all,
-                                child: Text('Ghi chú + Danh mục'),
+                                child: Text(LanguageService.tr(vi: 'Ghi chú + Danh mục', en: 'Note + Category')),
                               ),
                               PopupMenuItem(
                                 value: _SearchScope.category,
-                                child: Text('Danh mục'),
+                                child: Text(LanguageService.tr(vi: 'Danh mục', en: 'Category')),
                               ),
                               PopupMenuItem(
                                 value: _SearchScope.note,
-                                child: Text('Ghi chú'),
+                                child: Text(LanguageService.tr(vi: 'Ghi chú', en: 'Note')),
                               ),
                             ],
                           ),
@@ -282,7 +281,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                     child: Row(
                       children: [
                         Text(
-                          'Tìm theo: ${_searchScopeLabel()}',
+                          '${LanguageService.tr(vi: 'Tìm theo', en: 'Search by')}: ${_searchScopeLabel()}',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -293,7 +292,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              'Khoảng: ${_customRangeLabel(customRange)}',
+                              '${LanguageService.tr(vi: 'Khoảng', en: 'Range')}: ${_customRangeLabel(customRange)}',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -340,7 +339,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
                     backgroundColor: scheme.primary.withValues(alpha: 0.04),
                   ),
                   child: Text(
-                    'Xem báo cáo cho giai đoạn này',
+                    LanguageService.tr(vi: 'Xem báo cáo cho giai đoạn này', en: 'View report for this period'),
                     style: TextStyle(
                       color: scheme.primary,
                       fontSize: 14,
@@ -356,21 +355,26 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: scheme.errorContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Không thể tải giao dịch mới nhất. Vui lòng thử lại.',
-                    style: TextStyle(
-                      color: scheme.onErrorContainer,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                child: transactionState.error is OfflineException
+                  ? NoNetworkWidget(
+                      compact: true,
+                      onRetry: () => ref.read(transactionsControllerProvider.notifier).refresh(),
+                    )
+                  : Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: scheme.errorContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        LanguageService.tr(vi: 'Không thể tải giao dịch mới nhất. Vui lòng thử lại.', en: 'Could not load latest transactions. Please try again.'),
+                        style: TextStyle(
+                          color: scheme.onErrorContainer,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
               ),
             ),
 
@@ -380,7 +384,7 @@ class _TransactionScreenState extends ConsumerState<TransactionScreen> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
                 child: Text(
-                  'Không có giao dịch phù hợp bộ lọc hiện tại.',
+                  LanguageService.tr(vi: 'Không có giao dịch phù hợp bộ lọc hiện tại.', en: 'No transactions match the current filter.'),
                   style: TextStyle(
                     color: scheme.onSurfaceVariant,
                     fontSize: 14,
@@ -450,7 +454,11 @@ class _FilterBar extends ConsumerWidget {
 
   const _FilterBar({this.onFilterChanged});
 
-  static const List<String> _filters = ['Tháng này', 'Tuần này', 'Tùy chỉnh'];
+  static List<String> get _filters => [
+    LanguageService.tr(vi: 'Tháng này', en: 'This month'),
+    LanguageService.tr(vi: 'Tuần này', en: 'This week'),
+    LanguageService.tr(vi: 'Tùy chỉnh', en: 'Custom'),
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -493,8 +501,8 @@ class _FilterBar extends ConsumerWidget {
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2100),
                         initialDateRange: initialRange,
-                        saveText: 'Áp dụng',
-                        helpText: 'Chọn khoảng thời gian',
+                        saveText: LanguageService.tr(vi: 'Áp dụng', en: 'Apply'),
+                        helpText: LanguageService.tr(vi: 'Chọn khoảng thời gian', en: 'Select time range'),
                       );
 
                       if (picked == null) return;

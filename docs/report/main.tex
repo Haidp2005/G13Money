@@ -1,0 +1,182 @@
+% ============================================================================
+% BÁO CÁO ĐỒ ÁN MÔN HỌC — G13 MONEY
+% Ứng dụng quản lý tài chính cá nhân
+% Biên dịch: xelatex main.tex (chạy 2 lần để có mục lục đúng)
+% ============================================================================
+\documentclass[a4paper,13pt]{report}
+
+% ── Encoding & Vietnamese ────────────────────────────────────────────────────
+\usepackage[T5]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[vietnamese]{babel}
+\usepackage{mathptmx}  % Times New Roman compatible font
+
+% ── Page layout ──────────────────────────────────────────────────────────────
+\usepackage[top=2.5cm, bottom=2.5cm, left=3cm, right=2cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% ── Graphics & tables ────────────────────────────────────────────────────────
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{makecell}
+
+% ── Code listing ─────────────────────────────────────────────────────────────
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codebg}{HTML}{F8F8F8}
+\definecolor{codegreen}{HTML}{2E7D32}
+\definecolor{codeblue}{HTML}{1565C0}
+\definecolor{codepurple}{HTML}{7B1FA2}
+\definecolor{codegray}{HTML}{757575}
+\definecolor{codeorange}{HTML}{E65100}
+
+\lstdefinestyle{dartStyle}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  breakatwhitespace=false,
+  commentstyle=\color{codegreen}\itshape,
+  keywordstyle=\color{codeblue}\bfseries,
+  stringstyle=\color{codepurple},
+  numberstyle=\tiny\color{codegray},
+  numbers=left,
+  numbersep=8pt,
+  frame=single,
+  rulecolor=\color{codegray!30},
+  tabsize=2,
+  showstringspaces=false,
+  captionpos=b,
+  morekeywords={class,static,final,const,async,await,Future,void,bool,
+    String,int,double,List,Map,required,if,else,return,try,catch,throw,
+    import,extends,override,Widget,BuildContext,State,super,this,
+    ConsumerWidget,ConsumerStatefulWidget,WidgetRef,StateProvider,ref,
+    watch,read,new,abstract,switch,case,default,for,in,while,do,
+    get,set,late,var,dynamic,null,true,false,enum,typedef,with,
+    implements,mixin,on,show,hide,as,is,factory},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]",
+}
+\lstset{style=dartStyle}
+
+\lstdefinestyle{jsonStyle}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{codegray!30},
+  captionpos=b,
+  showstringspaces=false,
+  keywordstyle=\color{codeblue},
+  stringstyle=\color{codepurple},
+  morestring=[b]",
+}
+
+\lstdefinestyle{rulesStyle}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{codegray!30},
+  captionpos=b,
+  showstringspaces=false,
+  keywordstyle=\color{codeblue}\bfseries,
+  commentstyle=\color{codegreen}\itshape,
+  morekeywords={rules_version,service,match,allow,read,write,if,function,return,request,resource},
+  morecomment=[l]{//},
+}
+
+% ── Hyperlinks & PDF metadata ────────────────────────────────────────────────
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+  pdftitle={Báo cáo Đồ án - G13 Money},
+  pdfauthor={Nhóm G13},
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue!70!black,
+  citecolor=black,
+}
+
+% ── Diagrams ─────────────────────────────────────────────────────────────────
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows.meta,positioning,fit,calc,decorations.pathreplacing}
+
+% ── Misc ─────────────────────────────────────────────────────────────────────
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{indentfirst}
+\usepackage{parskip}
+\usepackage{tocloft}
+
+% ── Header/Footer ────────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\nouppercase{\leftmark}}
+\fancyhead[R]{\small Đồ án Lập trình Di động --- G13 Money}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% ── Chapter title format ─────────────────────────────────────────────────────
+\titleformat{\chapter}[display]
+  {\normalfont\Large\bfseries\centering}
+  {\MakeUppercase{\chaptertitlename}\ \thechapter}{12pt}{\LARGE\MakeUppercase}
+\titlespacing*{\chapter}{0pt}{-20pt}{20pt}
+
+% ── Paragraph spacing ────────────────────────────────────────────────────────
+\setlength{\parindent}{1cm}
+\setlength{\parskip}{6pt}
+
+% ============================================================================
+\begin{document}
+
+% ── TRANG BÌA ────────────────────────────────────────────────────────────────
+\input{chapters/titlepage}
+
+% ── Đánh số trang La Mã cho phần đầu ─────────────────────────────────────
+\pagenumbering{roman}
+
+% ── TÓM TẮT ──────────────────────────────────────────────────────────────────
+\input{chapters/abstract}
+
+% ── MỤC LỤC & DANH MỤC ──────────────────────────────────────────────────────
+\tableofcontents
+\listoffigures
+\addcontentsline{toc}{chapter}{DANH MỤC HÌNH ẢNH}
+\listoftables
+\addcontentsline{toc}{chapter}{DANH MỤC BẢNG}
+
+% ── Đánh số trang Ả Rập từ đây ──────────────────────────────────────────
+\newpage
+\pagenumbering{arabic}
+
+% ── CHƯƠNG 1: MỞ ĐẦU ────────────────────────────────────────────────────────
+\input{chapters/chapter1}
+
+% ── CHƯƠNG 2: PHÂN TÍCH VÀ THIẾT KẾ ─────────────────────────────────────────
+\input{chapters/chapter2}
+
+% ── CHƯƠNG 3: KẾT QUẢ CÀI ĐẶT ──────────────────────────────────────────────
+\input{chapters/chapter3}
+
+% ── KẾT LUẬN ─────────────────────────────────────────────────────────────────
+\input{chapters/conclusion}
+
+% ── PHỤ LỤC ──────────────────────────────────────────────────────────────────
+\input{chapters/appendix}
+
+% ── TÀI LIỆU THAM KHẢO ─────────────────────────────────────────────────────
+\input{chapters/references}
+
+\end{document}

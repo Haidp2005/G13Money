@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/connectivity_service.dart';
 import '../../accounts/data/categories_repository.dart';
 import '../data/transactions_repository.dart';
 import '../models/transaction.dart';
@@ -21,12 +22,19 @@ class TransactionsController extends AsyncNotifier<List<MoneyTransaction>> {
   }
 
   Future<List<MoneyTransaction>> _load({required bool forceRefresh}) async {
-    await Future.wait([
-      TransactionsRepository.instance.loadTransactions(forceRefresh: forceRefresh),
-      CategoriesRepository.instance.loadCategories(forceRefresh: forceRefresh),
-    ]);
-    return List<MoneyTransaction>.unmodifiable(
-      TransactionsRepository.instance.transactions,
-    );
+    try {
+      await Future.wait([
+        TransactionsRepository.instance.loadTransactions(forceRefresh: forceRefresh),
+        CategoriesRepository.instance.loadCategories(forceRefresh: forceRefresh),
+      ]);
+      return List<MoneyTransaction>.unmodifiable(
+        TransactionsRepository.instance.transactions,
+      );
+    } catch (_) {
+      if (!await ConnectivityService.hasConnection()) {
+        throw const OfflineException();
+      }
+      rethrow;
+    }
   }
 }

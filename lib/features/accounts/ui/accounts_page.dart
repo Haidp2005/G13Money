@@ -23,12 +23,14 @@ class ProfilePage extends ConsumerWidget {
   }
 }
 
-class _ProfileView extends StatelessWidget {
+class _ProfileView extends ConsumerWidget {
   final UserModel user;
   const _ProfileView({required this.user});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch the language provider so the entire page rebuilds on language change
+    ref.watch(appLanguageProvider);
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(

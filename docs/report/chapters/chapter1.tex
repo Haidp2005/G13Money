@@ -1,0 +1,145 @@
+% ════════════════════════════════════════════════════════════════════════════
+% CHƯƠNG 1: MỞ ĐẦU
+% ════════════════════════════════════════════════════════════════════════════
+\chapter{MỞ ĐẦU}
+
+\section{Lý do chọn đề tài}
+
+\subsection{Bối cảnh thực tiễn}
+
+Trong thời đại kinh tế số và thanh toán không tiền mặt phát triển mạnh mẽ tại Việt Nam, dòng tiền cá nhân ngày càng phức tạp với đa dạng kênh: tiền mặt, chuyển khoản ngân hàng, ví điện tử (MoMo, ZaloPay, VNPay), thẻ tín dụng, và nhiều hình thức khác. Sự đa dạng này khiến việc theo dõi và quản lý tài chính trở nên khó khăn hơn bao giờ hết.
+
+Theo báo cáo của Ngân hàng Nhà nước Việt Nam (2024), số lượng giao dịch thanh toán không dùng tiền mặt tăng 58\% so với năm trước, trong khi đó khảo sát của Vietnam Report cho thấy hơn 65\% người trẻ (18--30 tuổi) tại Việt Nam chưa có thói quen ghi chép thu chi hàng ngày. Hệ quả là:
+
+\begin{itemize}
+  \item \textbf{Chi tiêu vượt khả năng:} Không nắm được tổng chi tiêu thực tế dẫn đến tiêu quá mức.
+  \item \textbf{Thiếu hụt tiết kiệm:} Không đặt ngân sách nên không có kế hoạch tiết kiệm.
+  \item \textbf{Mất kiểm soát dòng tiền:} Tiền phân tán trên nhiều ví và tài khoản nhưng không có cái nhìn tổng thể.
+  \item \textbf{Quyết định tài chính kém:} Thiếu dữ liệu phân tích dẫn đến các quyết định chi tiêu thiếu cơ sở.
+\end{itemize}
+
+\subsection{Hạn chế của các giải pháp hiện tại}
+
+Trên thị trường hiện có nhiều ứng dụng quản lý tài chính cá nhân (Money Lover, MISA, Mint, Expense Manager, v.v.), tuy nhiên các ứng dụng này tồn tại một số hạn chế đáng kể:
+
+\begin{table}[H]
+\centering
+\caption{Phân tích hạn chế của các ứng dụng quản lý tài chính hiện tại}
+\label{tab:competitor-analysis}
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Hạn chế} & \textbf{Chi tiết} \\
+\hline
+Giao diện phức tạp & Nhiều ứng dụng có quá nhiều tính năng nhưng giao diện rối, không thân thiện với người dùng phổ thông, đặc biệt là sinh viên. \\
+\hline
+Thiếu cá nhân hóa & Hầu hết chỉ cung cấp thống kê thô, không có khả năng phân tích sâu hay tư vấn tài chính dựa trên dữ liệu thực tế của người dùng. \\
+\hline
+Chi phí sử dụng & Các tính năng nâng cao (biểu đồ chi tiết, đa ví, xuất báo cáo) thường bị khóa sau paywall. \\
+\hline
+Thiếu tích hợp AI & Chưa có ứng dụng nào tại Việt Nam tích hợp AI để tư vấn tài chính cá nhân hóa. \\
+\hline
+Phụ thuộc nền tảng & Nhiều ứng dụng chỉ hỗ trợ một nền tảng (Android hoặc iOS), hoặc chất lượng trên các nền tảng không đồng nhất. \\
+\hline
+Hỗ trợ tiếng Việt & Một số app quốc tế thiếu hỗ trợ tiếng Việt hoàn chỉnh và không phù hợp với bối cảnh tài chính Việt Nam (đơn vị VND, danh mục Việt). \\
+\hline
+Thiếu tích hợp ngân hàng & Phần lớn yêu cầu nhập giao dịch thủ công, không tự động đồng bộ với ngân hàng. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Giải pháp đề xuất}
+
+Xuất phát từ những vấn đề và hạn chế trên, nhóm G13 đề xuất xây dựng ứng dụng \textbf{G13 Money} --- một giải pháp quản lý tài chính cá nhân toàn diện với các đặc điểm:
+
+\begin{enumerate}
+  \item \textbf{Miễn phí, đầy đủ tính năng:} Không giới hạn tính năng đằng sau paywall.
+  \item \textbf{Đa nền tảng:} Xây dựng bằng Flutter, chạy trên cả Android và iOS từ cùng codebase.
+  \item \textbf{Tích hợp AI:} Google Gemini AI cung cấp gợi ý và tư vấn tài chính cá nhân hóa.
+  \item \textbf{Giao diện hiện đại:} Material Design 3 với hỗ trợ Light/Dark theme.
+  \item \textbf{Đa ngôn ngữ:} Hỗ trợ Tiếng Việt và Tiếng Anh.
+  \item \textbf{Tích hợp ngân hàng:} SePay webhook tự động ghi nhận giao dịch.
+  \item \textbf{Bảo mật:} Xác thực Firebase, sinh trắc học, Firestore Security Rules.
+\end{enumerate}
+
+% ── 1.2 ──────────────────────────────────────────────────────────────────────
+
+\section{Mục tiêu chính}
+
+Dựa trên đề cương cuối môn học \textit{Lập trình Di động}, đồ án đặt ra các mục tiêu cụ thể, chia thành 3 nhóm:
+
+\subsection{Nhóm mục tiêu chức năng}
+
+\begin{enumerate}
+  \item \textbf{Quản lý giao dịch thu/chi:} Cho phép người dùng thêm, sửa, xóa giao dịch với đầy đủ thông tin: số tiền, danh mục, ví/tài khoản, ngày tháng, ghi chú. Hỗ trợ phân loại thu nhập (\textit{income}), chi tiêu (\textit{expense}), và nợ (\textit{debt}).
+  \item \textbf{Quản lý đa ví/tài khoản:} Hỗ trợ tạo nhiều ví (tiền mặt, ngân hàng, ví điện tử) với số dư tự động cập nhật khi có giao dịch. Cho phép ẩn (soft delete) ví không sử dụng.
+  \item \textbf{Quản lý danh mục giao dịch:} Cung cấp bộ danh mục mặc định (Ăn uống, Di chuyển, Mua sắm, Lương, v.v.) và cho phép người dùng tạo danh mục tùy chỉnh với icon và màu sắc riêng.
+  \item \textbf{Quản lý ngân sách:} Đặt hạn mức chi tiêu theo danh mục và khoảng thời gian. Hiển thị thanh tiến độ trực quan và cảnh báo khi chi tiêu vượt 80\% hoặc 100\% hạn mức.
+  \item \textbf{Báo cáo thống kê:} Biểu đồ cột so sánh thu/chi theo tháng, biểu đồ tròn phân bổ chi tiêu theo danh mục với phần trăm chi tiết.
+  \item \textbf{Tổng quan tài chính (Dashboard):} Trang chủ hiển thị snapshot: tổng số dư, thu nhập tháng, chi tiêu tháng, giao dịch gần đây, gợi ý AI.
+  \item \textbf{Trợ lý AI tài chính:} Tích hợp Gemini AI để phân tích dữ liệu và đưa ra gợi ý cá nhân hóa. Hỗ trợ chat tương tác (hỏi đáp tài chính).
+  \item \textbf{Thông báo thông minh:} Push notification cảnh báo ngân sách, nhắc nhập giao dịch hàng ngày, thông báo giao dịch từ SePay.
+  \item \textbf{Tích hợp ngân hàng (SePay):} Tự động nhận webhook từ SePay khi có giao dịch ngân hàng, ghi nhận vào hệ thống và thông báo cho người dùng.
+\end{enumerate}
+
+\subsection{Nhóm mục tiêu phi chức năng}
+
+\begin{enumerate}
+  \item \textbf{Đa nền tảng:} Ứng dụng chạy trên Android (5.0+) và iOS (12+).
+  \item \textbf{Giao diện hiện đại:} Material Design 3, hỗ trợ Light/Dark theme.
+  \item \textbf{Đa ngôn ngữ:} Tiếng Việt và Tiếng Anh, chuyển đổi tức thì.
+  \item \textbf{Bảo mật:} Firebase Auth (email/password), xác thực sinh trắc học, dữ liệu cách ly per-user trên Firestore.
+  \item \textbf{Hiệu năng:} Thời gian phản hồi UI $< 100ms$, đồng bộ dữ liệu tự động mỗi 8 giây.
+  \item \textbf{Responsive:} Giao diện hiển thị tốt trên nhiều kích thước màn hình.
+\end{enumerate}
+
+\subsection{Nhóm mục tiêu kỹ thuật}
+
+\begin{enumerate}
+  \item Áp dụng kiến trúc Feature-First Architecture cho tổ chức code.
+  \item Sử dụng Riverpod cho state management.
+  \item Áp dụng Repository Pattern cho tầng dữ liệu.
+  \item Triển khai backend serverless trên Firebase.
+  \item Tích hợp REST API (Gemini AI, SePay webhook).
+\end{enumerate}
+
+% ── 1.3 ──────────────────────────────────────────────────────────────────────
+
+\section{Kết quả dự kiến}
+
+Dựa trên đề cương cuối môn học, kết quả dự kiến của đồ án bao gồm:
+
+\begin{table}[H]
+\centering
+\caption{Bảng kết quả dự kiến của đồ án}
+\label{tab:expected-results}
+\begin{tabularx}{\textwidth}{|c|X|l|}
+\hline
+\textbf{STT} & \textbf{Sản phẩm} & \textbf{Định dạng} \\
+\hline
+1 & Ứng dụng di động G13 Money chạy trên Android và iOS & File APK / IPA \\
+\hline
+2 & Source code hoàn chỉnh trên GitHub & Repository Git \\
+\hline
+3 & Hệ thống backend Firebase (Firestore, Auth, Functions, FCM) & Cloud services \\
+\hline
+4 & Webhook handler (Firebase Functions / Cloudflare Workers) & Serverless function \\
+\hline
+5 & Tích hợp Gemini AI cho tư vấn tài chính & REST API integration \\
+\hline
+6 & Tài liệu kỹ thuật (kiến trúc, API, schema, user guide) & Markdown files \\
+\hline
+7 & Báo cáo đồ án chi tiết & File PDF (LaTeX) \\
+\hline
+8 & Video demo ứng dụng & File MP4 \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Phạm vi đồ án}
+
+\begin{itemize}
+  \item \textbf{Đối tượng người dùng:} Cá nhân (sinh viên, người đi làm) cần quản lý tài chính hàng ngày.
+  \item \textbf{Nền tảng:} Android, iOS (có thể chạy thêm trên Web và Desktop).
+  \item \textbf{Ngôn ngữ:} Tiếng Việt (chính), Tiếng Anh (phụ).
+  \item \textbf{Giới hạn:} Ứng dụng dành cho cá nhân, chưa hỗ trợ quản lý tài chính nhóm/doanh nghiệp. Chưa hỗ trợ offline mode.
+\end{itemize}
