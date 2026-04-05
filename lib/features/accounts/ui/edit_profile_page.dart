@@ -48,11 +48,15 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
     try {
       String? nextAvatarUrl;
+      String? previousAvatarUrl;
       if (_selectedAvatar != null) {
         final uid = AuthService.currentUserId;
         if (uid == null) {
           throw Exception('Bạn chưa đăng nhập');
         }
+        previousAvatarUrl = _currentAvatarUrl.trim().isEmpty
+            ? null
+            : _currentAvatarUrl.trim();
         final bytes = await _selectedAvatar!.readAsBytes();
         nextAvatarUrl = await SupabaseStorageService.uploadAvatar(
           uid: uid,
@@ -65,6 +69,18 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         phone: _phoneCtrl.text,
         avatarUrl: nextAvatarUrl,
       );
+
+      if (nextAvatarUrl != null &&
+          previousAvatarUrl != null &&
+          previousAvatarUrl != nextAvatarUrl) {
+        try {
+          await SupabaseStorageService.deleteAvatarByPublicUrl(
+            previousAvatarUrl,
+          );
+        } catch (_) {
+          // Keep profile update success even if old storage cleanup fails.
+        }
+      }
 
       ref.read(profileRefreshTickProvider.notifier).state++;
 

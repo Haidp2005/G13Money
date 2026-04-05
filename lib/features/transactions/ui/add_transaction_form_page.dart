@@ -559,6 +559,10 @@ class _AddTransactionFormPageState extends ConsumerState<AddTransactionFormPage>
         throw Exception('Bạn chưa đăng nhập');
       }
 
+      final originalAttachmentUrls = _isEditMode
+          ? widget.initialData!.attachmentUrls
+          : const <String>[];
+
       final txId = _isEditMode
           ? widget.initialData!.transactionId
           : DateTime.now().microsecondsSinceEpoch.toString();
@@ -587,6 +591,19 @@ class _AddTransactionFormPageState extends ConsumerState<AddTransactionFormPage>
           isIncome: isIncome,
           attachmentUrls: mergedAttachmentUrls,
         );
+
+        final removedUrls = originalAttachmentUrls
+            .where((url) => !_existingAttachmentUrls.contains(url))
+            .toList(growable: false);
+        if (removedUrls.isNotEmpty) {
+          try {
+            await SupabaseStorageService.deleteTransactionImagesByPublicUrls(
+              removedUrls,
+            );
+          } catch (_) {
+            // Keep transaction update success even if old storage cleanup fails.
+          }
+        }
       } else {
         await TransactionsRepository.instance.addTransaction(
           title: title,
@@ -861,6 +878,72 @@ class _AddTransactionFormPageState extends ConsumerState<AddTransactionFormPage>
                                         ref
                                             .read(transactionAttachmentsProvider.notifier)
                                             .state = List<Uint8List>.unmodifiable(next);
+                                      },
+                                      child: Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xAA000000),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                      if (_existingAttachmentUrls.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 76,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _existingAttachmentUrls.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              final imageUrl = _existingAttachmentUrls[index];
+                              return Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.network(
+                                      imageUrl,
+                                      width: 76,
+                                      height: 76,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                        width: 76,
+                                        height: 76,
+                                        color: const Color(0xFFF1F3F8),
+                                        alignment: Alignment.center,
+                                        child: const Icon(
+                                          Icons.broken_image_outlined,
+                                          color: Color(0xFF8C919E),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 2,
+                                    right: 2,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _existingAttachmentUrls.removeAt(
+                                            index,
+                                          );
+                                        });
                                       },
                                       child: Container(
                                         width: 20,

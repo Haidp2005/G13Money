@@ -78,6 +78,75 @@ class SupabaseStorageService {
     return urls;
   }
 
+  static Future<void> deleteAvatarByPublicUrl(String publicUrl) async {
+    await deleteFilesByPublicUrls(
+      bucketName: 'avatars',
+      publicUrls: <String>[publicUrl],
+    );
+  }
+
+  static Future<void> deleteTransactionImagesByPublicUrls(
+    List<String> publicUrls,
+  ) async {
+    await deleteFilesByPublicUrls(
+      bucketName: 'transaction-images',
+      publicUrls: publicUrls,
+    );
+  }
+
+  static Future<void> deleteFilesByPublicUrls({
+    required String bucketName,
+    required List<String> publicUrls,
+  }) async {
+    _ensureReady();
+    if (publicUrls.isEmpty) return;
+
+    final bucket = Supabase.instance.client.storage.from(bucketName);
+    final paths = <String>[];
+
+    for (final rawUrl in publicUrls) {
+      final path = _extractPathFromPublicUrl(
+        bucketName: bucketName,
+        publicUrl: rawUrl,
+      );
+      if (path != null && path.isNotEmpty) {
+        paths.add(path);
+      }
+    }
+
+    if (paths.isEmpty) return;
+    await bucket.remove(paths);
+  }
+
+  static String? _extractPathFromPublicUrl({
+    required String bucketName,
+    required String publicUrl,
+  }) {
+    final raw = publicUrl.trim();
+    if (raw.isEmpty) {
+      return null;
+    }
+
+    final uri = Uri.tryParse(raw);
+    if (uri == null) {
+      return null;
+    }
+
+    final marker = '/storage/v1/object/public/$bucketName/';
+    final path = uri.path;
+    final markerIndex = path.indexOf(marker);
+    if (markerIndex == -1) {
+      return null;
+    }
+
+    final filePath = path.substring(markerIndex + marker.length);
+    if (filePath.isEmpty) {
+      return null;
+    }
+
+    return Uri.decodeComponent(filePath);
+  }
+
   static void _ensureReady() {
     if (!isConfigured) {
       throw Exception(
